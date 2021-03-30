@@ -1,0 +1,7 @@
+{
+    "$schema": "vscode://schemas/flasher",
+    "downloadSections": [],
+    "baseAddress": "0x601000",
+    "totalSize": 0,
+    "endAddress": "0x601000"
+}
