@@ -7,10 +7,12 @@
         "kendryte/sdcard-standalone-driver": "develop"
     },
     "source": [
-        "src/*.c"
+        "src/*.c",
+        "src/user/user_syscall.c"
     ],
     "header": [
-        "src"
+        "src",
+        "src/user"
     ],
     "homepage": "",
     "definitions": {

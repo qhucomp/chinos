@@ -27,7 +27,7 @@ set(CMAKE_MODULE_LINKER_FLAGS "")
 
 
 cmake_minimum_required(VERSION 3.0.0)
-set(PROJECT_NAME "kendryte_sdcard-file-standalone")
+set(PROJECT_NAME "chinos")
 # [/section] Head
 
 # [section] Init
@@ -206,6 +206,7 @@ project(${PROJECT_NAME})
 ### from project local
 include_directories(
   "${CMAKE_CURRENT_LIST_DIR}/src"
+  "${CMAKE_CURRENT_LIST_DIR}/src/user"
 )### from ide
 include_directories("${CMAKE_CURRENT_LIST_DIR}/config")
 ## from project public
@@ -219,10 +220,12 @@ include_directories(
 )
 ## [/section] Header
 ## [section] Source
-## add source from config json (3 files matched)
+## add source from config json (5 files matched)
+add_source_file(src/user/user_syscall.c)
 add_source_file(config/fpioa-config.c)
 add_source_file(config/ide-hook-main.c)
 add_source_file(src/main.c)
+add_source_file(src/kernel_interrupt.c)
 ## [/section] Source
 # [/section] Project
 
@@ -230,7 +233,7 @@ add_source_file(src/main.c)
 
 # [/section] Custom
 # [section] Target
-## final create kendryte_sdcard-file-standalone executable
+## final create chinos executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE "PROJECT_PATH=${CMAKE_CURRENT_LIST_DIR}/")
 ### [section] Custom2
@@ -275,7 +278,7 @@ target_link_options(${PROJECT_NAME} PUBLIC
 	"-Wl,--gc-sections"
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC -Wl,--start-group
-	## -> kendryte/sdcard-file-standalone: kendryte_sdcard-file-standalone
+	## -> chinos: chinos
 	##	not link component
 	## -> kendryte/sdcard-standalone-driver: kendryte_sdcard-standalone-driver
 	"kendryte_sdcard-standalone-driver"

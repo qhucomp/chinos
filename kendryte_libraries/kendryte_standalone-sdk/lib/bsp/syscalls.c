@@ -129,7 +129,7 @@ static int sys_nosys(long a0, long a1, long a2, long a3, long a4, long a5,
   UNUSED(a5);
   LOGE(TAG, "Unsupported syscall %ld: a0=%lx, a1=%lx, a2=%lx!\r\n", n, a0, a1,
        a2);
-  while (1) continue;
+  while (1) printf("test");
   return -ENOSYS;
 }
 
@@ -424,7 +424,7 @@ handle_ecall(uintptr_t cause, uintptr_t epc, uintptr_t regs[32],
 #pragma GCC diagnostic warning "-Woverride-init"
 #endif
 
-  regs[10] = syscall_table[syscall_id_table[0xFF & regs[17]]](regs[10], /* a0 */
+  regs[10] = syscall_table[syscall_id_table[0xFF & regs[17]]](epc + 4, /* a0 */
                                                               regs[11], /* a1 */
                                                               regs[12], /* a2 */
                                                               regs[13], /* a3 */

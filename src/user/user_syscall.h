@@ -12,7 +12,7 @@
  * @param6:系统调用参数6
  * @return:返回一个void *指针，值由系统调用确定
  */
-void *syscall(int syscall_no, uint64_t param1, uint64_t param2, uint64_t param3,
+void syscall(int syscall_no, uint64_t param1, uint64_t param2, uint64_t param3,
               uint64_t param4, uint64_t param5, uint64_t param6);
 
 #endif
