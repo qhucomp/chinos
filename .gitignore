@@ -7,4 +7,5 @@ Cargo.lock
 *.elf
 *.bin
 *.d
+*.o
 bootloader/target
