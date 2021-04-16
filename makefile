@@ -20,3 +20,5 @@ entry_k210:kernel/entry_k210.S
 	$(CC) $(CFLAGS) -c entry_k210.S
 clean:
 	rm kernel/*.d kernel/*.o kernel/kernel.elf
+upload:
+	$(command_path)kflash_py k210.bin
