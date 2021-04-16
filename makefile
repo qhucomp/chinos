@@ -1,4 +1,4 @@
-obj := kernel/main.o kernel/entry_k210.o kernel/uart.o kernel/sysctl.o
+obj := kernel/main.o kernel/entry_k210.o kernel/uart.o
 
 command_path := toolchain/bin/
 prefix := $(command_path)riscv64-unknown-elf-
