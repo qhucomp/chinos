@@ -1,6 +1,6 @@
-obj := kernel/main.o kernel/entry_k210.o
+obj := kernel/main.o kernel/entry_k210.o kernel/uart.o kernel/sysctl.o
 
-command_path :=  
+command_path := toolchain/bin/
 prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
@@ -8,7 +8,7 @@ OBJCOPY := $(prefix)objcopy
 CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector
 lds := kernel/k210.lds
 DD := $(command_path)dd
-build: $(obj)
+all: $(obj)
 	cd bootloader/k210 && just
 	cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
@@ -18,3 +18,5 @@ build: $(obj)
 	rm kernel.bin
 entry_k210:kernel/entry_k210.S
 	$(CC) $(CFLAGS) -c entry_k210.S
+clean:
+	rm kernel/*.d kernel/*.o kernel/kernel.elf
