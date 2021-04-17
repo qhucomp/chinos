@@ -8,7 +8,11 @@ kernel/syscalls.o \
 kernel/riscv.o \
 kernel/printk.o \
 kernel/print_logo.o
-command_path := 
+ifeq ($(OS),Windows_NT)
+	command_path := toolchain/bin/
+else
+	command_path :=
+endif
 prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
