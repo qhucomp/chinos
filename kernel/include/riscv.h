@@ -32,7 +32,7 @@
 #define write_mstatus(mstatus)                                      \
 ({                                                                  \
     register unsigned long a0 asm("a0") = (unsigned long)mstatus;   \
-    asm volatile("csrr %0,mstatus"::"r"(a0)::"memory");             \
+    asm volatile("csrr %0,mstatus"::"r"(a0):"memory");             \
 })
 #define MPP_MACHINE     (3 << 11)
 #define MPP_HYPERVISOR  (2 << 11)
