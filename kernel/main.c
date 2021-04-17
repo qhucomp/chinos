@@ -8,7 +8,7 @@
 
 extern void _trap_entry(void);
 void kernel_init(void) {
-  write_mtvec(_trap_entry);
+  write_mtvec((uint64_t)_trap_entry);
   printk("init kernel.........OK");
 }
 int main(void) {

@@ -6,9 +6,9 @@ kernel/trap_entry.o \
 kernel/trap.o \
 kernel/syscalls.o \
 kernel/riscv.o \
-kernel/printk.o
-
-command_path := toolchain/bin/
+kernel/printk.o \
+kernel/print_logo.o
+command_path := 
 prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
@@ -17,7 +17,7 @@ CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -ffreesta
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)
-	cd bootloader/k210 && just
+	cd bootloader/k210 && sh just.sh
 	cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
 	$(OBJCOPY) kernel/kernel.elf --strip-all -O binary kernel.bin

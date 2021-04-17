@@ -45,6 +45,8 @@
 #define CAUSE_MACHINE_ECALL     (0xb)
 
 void set_mpp(uint64_t mpp);
+
+//让vscode只在这个文件内提示错误
 uint64_t inline read_mcause(void) {return _read_mcause();}
 uint64_t inline read_mepc(void) {return _read_mepc();}
 uint64_t inline read_mstatus(void) {return _read_mstatus();}
