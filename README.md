@@ -12,3 +12,7 @@ make
 ``` bash
 make upload
 ```
+清除rust编译缓存
+``` bash
+make clean_cache
+```
