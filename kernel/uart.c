@@ -7,7 +7,7 @@
 #define read_reg(r)     (*(reg(r)))
 #define TXDATA  0
 #define RXDATA  4
-#define DATA_IS_OK(data) ((data) & (1 << 31) == 0)
+#define DATA_IS_NO_EMPTY(data) (((data) & (1 << 31)) == 0)
 #define DATA_IS_FINSHED(data) ((data) & (1 << 31))
 void uart_send(char ch) {
     while(DATA_IS_FINSHED(read_reg(TXDATA)))
@@ -17,7 +17,7 @@ void uart_send(char ch) {
 
 int uart_receive(void) {
     uint32_t data = read_reg(RXDATA);
-    if (DATA_IS_OK(data))
+    if (DATA_IS_NO_EMPTY(data))
         return data & 0xff;
     else
         return EOF;

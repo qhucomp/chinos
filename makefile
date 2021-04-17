@@ -1,4 +1,12 @@
-obj := kernel/main.o kernel/entry_k210.o kernel/uart.o
+obj := \
+kernel/main.o \
+kernel/entry_k210.o \
+kernel/uart.o \
+kernel/trap_entry.o \
+kernel/trap.o \
+kernel/syscalls.o \
+kernel/riscv.o \
+kernel/printk.o
 
 command_path := toolchain/bin/
 prefix := $(command_path)riscv64-unknown-elf-
@@ -22,3 +30,5 @@ clean:
 	rm kernel/*.d kernel/*.o kernel/kernel.elf
 upload:
 	$(command_path)kflash_py k210.bin
+clean_cache:
+	rm bootloader/target -rf

@@ -259,7 +259,7 @@ fn main() -> ! {
     }
     unsafe {
         mepc::write(_s_mode_start as usize);
-        mstatus::set_mpp(MPP::Supervisor);
+        mstatus::set_mpp(MPP::Machine);
         enter_privileged(mhartid::read(), 0x2333333366666666);
     }
 }
