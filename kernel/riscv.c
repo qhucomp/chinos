@@ -6,4 +6,5 @@ void set_mpp(uint64_t mpp) {
 
     if (mpp != 0)
         mstatus |= mpp;
+    write_mstatus(mstatus);
 }
