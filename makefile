@@ -26,6 +26,7 @@ all: $(obj)
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
 	$(OBJCOPY) kernel/kernel.elf --strip-all -O binary kernel.bin
 	$(DD) if=kernel.bin of=rustsbi-k210.bin bs=128k seek=1
+	$(DD) if=/dev/zero of=disk.img bs=3m count=1024
 	mv rustsbi-k210.bin k210.bin
 	rm kernel.bin
 entry_k210:kernel/entry_k210.S
