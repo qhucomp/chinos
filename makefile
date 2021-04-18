@@ -16,7 +16,8 @@ ifeq ($(OS),Windows_NT)
 	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)
 	command_path := toolchain/bin/
 else
-	command_path := /opt/kendryte-toolchain/bin/
+	command_path := 
+	r := $(shell export PATH=$PATH:/opt/kendryte-toolchain/bin)
 endif
 prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
