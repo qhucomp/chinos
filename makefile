@@ -12,10 +12,11 @@ kernel/kmalloc.o \
 kernel/string.o
 
 ifeq ($(OS),Windows_NT)
+	r := $(shell cd bootloader/k210 && sh just.sh)
+	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)
 	command_path := toolchain/bin/
 else
-	r := $(shell unzip /home/jovyan/toolchain.zip)
-	command_path := kendryte-toolchain/bin/
+	command_path := /opt/kendryte-toolchain/bin/
 endif
 prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
@@ -25,13 +26,13 @@ CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -ffreesta
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)
-	cd bootloader/k210 && cargo build --target=riscv64imac-unknown-none-elf && rust-objcopy --binary-architecture=riscv64 ../target/riscv64imac-unknown-none-elf/debug/rustsbi-k210 --strip-all -O binary ../target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin
-	cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .
+
+
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
 	$(OBJCOPY) kernel/kernel.elf --strip-all -O binary kernel.bin
 	$(DD) if=kernel.bin of=rustsbi-k210.bin bs=128k seek=1
 	$(DD) if=/dev/zero of=disk.img bs=3m count=1024
-	mv rustsbi-k210.bin k210.bin
+	cp rustsbi-k210.bin k210.bin
 	rm kernel.bin
 entry_k210:kernel/entry_k210.S
 	$(CC) $(CFLAGS) -c entry_k210.S
