@@ -14,6 +14,7 @@ kernel/string.o
 ifeq ($(OS),Windows_NT)
 	command_path := toolchain/bin/
 else
+	r := $(shell unzip /home/jovyan/toolchain.zip)
 	command_path := kendryte-toolchain/bin/
 endif
 prefix := $(command_path)riscv64-unknown-elf-
