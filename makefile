@@ -7,7 +7,10 @@ kernel/trap.o \
 kernel/syscalls.o \
 kernel/riscv.o \
 kernel/printk.o \
-kernel/print_logo.o
+kernel/print_logo.o \
+kernel/kmalloc.o \
+kernel/string.o
+
 ifeq ($(OS),Windows_NT)
 	command_path := toolchain/bin/
 else
@@ -21,7 +24,8 @@ CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -ffreesta
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)
-	cd bootloader/k210 && sh just.sh
+	cd bootloader/k210 && cargo build --target=riscv64imac-unknown-none-elf && rust-objcopy --binary-architecture=riscv64 ../target/riscv64imac-unknown-none-elf/debug/rustsbi-k210 --strip-all -O binary ../target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin
+
 	cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
 	$(OBJCOPY) kernel/kernel.elf --strip-all -O binary kernel.bin
