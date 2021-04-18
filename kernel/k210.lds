@@ -1,6 +1,5 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-
 BASE_ADDRESS = 0x80200000;
 
 SECTIONS
@@ -32,6 +31,11 @@ SECTIONS
         _sbss = .;
         *(.sbss .bss .bss.*)
         _ebss = .;
+    }
+
+    .heap : ALIGN(4K) {
+        _heap_start = .;
+        _heap_end = 0x80600000;
     }
 
     PROVIDE(end = .);
