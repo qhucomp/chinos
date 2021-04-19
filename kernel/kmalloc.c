@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 extern char _heap_start[];
-char *heap_end = (char *)0x80600000;
+char *kernel_heap_end = (char *)0x80400000;
 struct zone zone_struct = {0,FREE,0};
 struct zone *zone_array;
 uint64_t *bitmap;
@@ -34,10 +34,12 @@ void init_kmalloc(void) {
     ptr->flag = ALLOC;
     ptr->next = bitmap_zone;
     zone_struct.next = ptr;
-    zone_struct.ptr = (char *)zone_struct.ptr + size + bitmap_size;
-    zone_struct.size = heap_end - _heap_start;
+    zone_struct.ptr = (void *)((char *)zone_struct.ptr + size + bitmap_size);
+    zone_struct.size = kernel_heap_end - _heap_start;
+    printk("kernel heap size:%ld",zone_struct.size,zone_struct.ptr);
     printk("kmalloc init.........OK\n");
 }
+
 struct zone *alloc_zone(void) {
     for(size_t i = 0;i < bitmap_size;i++)
         if (~(bitmap[i] & 0xffffffffffffffff))
@@ -47,24 +49,48 @@ struct zone *alloc_zone(void) {
     return NULL;
 }
 
+static void mem_block_merge(void) {
+    //合并内存块，将小内存合并为大内存
+    for(struct zone *ptr = &zone_struct;ptr->next != NULL;ptr = ptr->next) {
+        if ((ptr->flag == FREE) && (ptr->next != NULL) && (ptr->next->flag == FREE)) {
+            ptr->size += ptr->next->size;
+            ptr->next = ptr->next->next;
+            free_zone(ptr->next);
+        }
+    }
+}
+
 void *kmalloc(size_t size) {
+    int flag = 1;
+    struct zone *prev_ptr = &zone_struct;
+start:
     for (struct zone *ptr = &zone_struct;ptr->next != NULL;ptr = ptr->next) {
         if ((ptr->flag == FREE) && (ptr->size > size)) {
             struct zone *zone_ptr = alloc_zone();
             void *p = ptr->ptr;
             ptr->ptr = (char *)ptr->ptr + size;
             ptr->size -= size;
+
+            //使分配的内存地址为递增
             zone_ptr->ptr = p;
             zone_ptr->size = size;
             zone_ptr->flag = ALLOC;
-            zone_ptr->next = ptr->next;
-            ptr->next = zone_ptr;
+            zone_ptr->next = ptr;
+            prev_ptr->next = zone_ptr;
             return p;
         } else if ((ptr->flag == FREE) && (ptr->size == size)) {
             ptr->flag = ALLOC;
             return ptr->ptr;
         }
+        prev_ptr = ptr;
     }
+
+    if (flag) {
+        flag = 0;
+        mem_block_merge();
+        goto start;
+    }
+    printk("kmalloc():out of memory!");
     return NULL;
 }
 
@@ -77,31 +103,15 @@ void free_zone(struct zone *ptr) {
         //清空位
         bitmap[i] = bitmap[i] & ~(1 << j);
     else
-        printk("free_zone error!\n");
+        printk("free_zone() error!\n");
 }
+
 void kfree(void *ptr) {
-    /*struct zone *prev,*next;
-    struct zone *temp;
-    for (struct zone *p = &zone_struct;p->next != NULL;p = p->next) {
-        if (p->ptr == ptr) {
-            p->flag = FREE;
-            if (prev->flag == FREE) {
-                p->ptr = prev->ptr;
-                p->size += prev->size;
-                p-
-            }
-        } else if (((void *)((char *)p->ptr + p->size)) == ptr) {   //合并内存
-            prev = p;
-        } else if ((void *)((char *)ptr + p->size) == p->ptr) {
-            next = p;
-        }
-        temp = p;
-    }*/
     for (struct zone *p = &zone_struct;p->next != NULL;p = p->next) {
         if (p->ptr == ptr) {
             p->flag = FREE;
             return;
         }
     }
-    printk("kfree error\n");
+    printk("kfree() error\n");
 }
