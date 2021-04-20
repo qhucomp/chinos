@@ -15,37 +15,41 @@ void init_kmalloc(void) {
     zone_struct.ptr = _heap_start;
     printk("heap address:%p\n",_heap_start);
     size_t size = 64*sizeof(struct zone);
-    size_t bitmap_size = 64*sizeof(uint64_t);
+    size_t _bitmap_size = 64*sizeof(uint64_t);
     struct zone *ptr = zone_struct.ptr;
     zone_array = zone_struct.ptr;
     memset(ptr,0,size);
     //初始化bitmap
     bitmap = zone_struct.ptr + size;
-    memset(bitmap,0,bitmap_size);
+    memset(bitmap,0,_bitmap_size);
 
     bitmap[1] = 3;                      //分配了两个struct zone
     bitmap_size = 64;
     struct zone *bitmap_zone = ptr + 1;
     bitmap_zone->ptr = bitmap;
-    bitmap_zone->size = bitmap_size;
+    bitmap_zone->size = _bitmap_size;
     bitmap_zone->flag = ALLOC;
     bitmap_zone->next = NULL;
     ptr->ptr = ptr;
     ptr->flag = ALLOC;
     ptr->next = bitmap_zone;
     zone_struct.next = ptr;
-    zone_struct.ptr = (void *)((char *)zone_struct.ptr + size + bitmap_size);
-    zone_struct.size = kernel_heap_end - _heap_start;
-    printk("kernel heap size:%ld",zone_struct.size,zone_struct.ptr);
+    zone_struct.ptr = (void *)((char *)zone_struct.ptr + size + _bitmap_size);
+    zone_struct.size = kernel_heap_end - _heap_start - size - _bitmap_size;
+    printk("kernel heap size:%ld\n",zone_struct.size,zone_struct.ptr);
     printk("kmalloc init.........OK\n");
 }
 
 struct zone *alloc_zone(void) {
-    for(size_t i = 0;i < bitmap_size;i++)
-        if (~(bitmap[i] & 0xffffffffffffffff))
+    for(size_t i = 0;i < bitmap_size;i++) {
+        if (~(bitmap[i] & 0xffffffffffffffff)) {
             for(int j = 0;j < 64;j++)
-                if (bitmap[i] & (1 << j))
+                if (bitmap[i] & (1 << j)) {
+                    bitmap[i] |= 1 << j;
                     return &zone_array[i + j];
+                }
+        }
+    }
     return NULL;
 }
 
@@ -67,7 +71,7 @@ start:
     for (struct zone *ptr = &zone_struct;ptr->next != NULL;ptr = ptr->next) {
         if ((ptr->flag == FREE) && (ptr->size > size)) {
             struct zone *zone_ptr = alloc_zone();
-            void *p = ptr->ptr;
+            char *p = ptr->ptr;
             ptr->ptr = (char *)ptr->ptr + size;
             ptr->size -= size;
 
@@ -90,7 +94,7 @@ start:
         mem_block_merge();
         goto start;
     }
-    printk("kmalloc():out of memory!");
+    printk("kmalloc():out of memory!\n");
     return NULL;
 }
 

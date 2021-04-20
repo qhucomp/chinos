@@ -2,8 +2,10 @@
 #include "include/uart.h"
 #include "include/riscv.h"
 #include "include/syscalls.h"
+#include "include/printk.h"
 void _start_trap(regs reg) {
     uint64_t mcause = read_mcause();
+    printk("wtf\n");
     switch(mcause) {
         case CAUSE_USER_ECALL:
         case CAUSE_SUPERVISOR_ECALL:

@@ -9,7 +9,10 @@ kernel/riscv.o \
 kernel/printk.o \
 kernel/print_logo.o \
 kernel/kmalloc.o \
-kernel/string.o
+kernel/string.o \
+kernel/user_thread.o \
+kernel/user.o \
+
 
 ifeq ($(OS),Windows_NT)
 	r := $(shell cd bootloader/k210 && sh just.sh)

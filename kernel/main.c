@@ -6,23 +6,21 @@
 #include "include/printk.h"
 #include "include/logo.h"
 #include "include/kmalloc.h"
-
+#include "include/user_test.h"
+#include "include/user_thread.h"
 extern void _trap_entry(void);
 void kernel_init(void) {
   write_mtvec((uint64_t)_trap_entry);
   init_kmalloc();
+  //syscalls[64] = (syscall_func)sys_write;
   printk("init kernel.........OK\n");
 }
 int main(void) {
     kernel_init();
     print_logo();
-    char *ptr = kmalloc(1024);
-    printk("address:%p\n",ptr);
-    while(1) {
-      int ch =   uart_receive();
-      if (ch != EOF) { 
-          uart_send(ch);
-      }
-    }
+    user_thread *thread = create_thread(user_test);
+    start_thread(thread);
+    printk("failed\n");
+    while (1);
     return 0;
 }

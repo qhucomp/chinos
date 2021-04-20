@@ -2,6 +2,10 @@
 #include "include/trap.h"
 #include "include/syscalls.h"
 #include "include/uart.h"
+
+char *user_heap_start = (char *)0x80400000;
+char *user_heap_end = (char *)0x80600000;
+
 uintptr_t handle_ecall(uint64_t extension,regs *reg) {
     switch(extension) {
         case SYS_write:
@@ -21,4 +25,8 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
             putchar(((char *)buf)[i]);
     }
     return count;
+}
+
+void *sys_brk(size_t pos) {
+    return NULL;
 }
