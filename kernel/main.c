@@ -8,9 +8,10 @@
 #include "include/kmalloc.h"
 #include "include/user_test.h"
 #include "include/user_thread.h"
+
 extern void _trap_entry(void);
 void kernel_init(void) {
-  write_mtvec((uint64_t)_trap_entry);
+  _write_mtvec((uint64_t)_trap_entry);
   init_kmalloc();
   //syscalls[64] = (syscall_func)sys_write;
   printk("init kernel.........OK\n");
@@ -18,8 +19,11 @@ void kernel_init(void) {
 int main(void) {
     kernel_init();
     print_logo();
-    user_thread *thread = create_thread(user_test);
-    start_thread(thread);
+    //user_thread *thread = create_thread(user_test);
+    //start_thread(thread);
+    //char *test = "test\n";
+    //ECALL(SYS_write,1,test,5);
+    ECALL(0,0,0,0);
     printk("failed\n");
     while (1);
     return 0;

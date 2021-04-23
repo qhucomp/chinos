@@ -47,6 +47,7 @@ _trap_entry:
     STORE x31,31
     mv a0,sp
     call _start_trap
+
 .section .text
 .global _restore
 _restore:

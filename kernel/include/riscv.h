@@ -47,10 +47,4 @@
 void set_mpp(uint64_t mpp);
 
 //让vscode只在这个文件内提示错误
-uint64_t inline read_mcause(void) {return _read_mcause();}
-uint64_t inline read_mepc(void) {return _read_mepc();}
-uint64_t inline read_mstatus(void) {return _read_mstatus();}
-void inline write_mtvec(uint64_t a0) {_write_mtvec(a0);}
-void inline write_mepc(uint64_t a0) {_write_mepc(a0);}
-void inline write_mstatus(uint64_t a0) {_write_mstatus(a0);}
 #endif

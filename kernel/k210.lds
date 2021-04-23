@@ -7,7 +7,6 @@ SECTIONS
     /* Load the kernel at this address: "." means the current address */
     . = BASE_ADDRESS;
     start = .;
-
     .text : ALIGN(4K) {
         _stext = .;
         *(.text.entry)
@@ -20,7 +19,6 @@ SECTIONS
         *(.rodata .rodata.*)
         _erodata = .;
     }
-
     .data : ALIGN(4K) {
         _sdata = .;
         *(.data .data.*)
@@ -35,7 +33,6 @@ SECTIONS
 
     .heap : ALIGN(4K) {
         _heap_start = .;
-        _heap_end = 0x80600000;
     }
 
     PROVIDE(end = .);
