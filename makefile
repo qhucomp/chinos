@@ -10,10 +10,12 @@ kernel/printk.o \
 kernel/print_logo.o \
 kernel/kmalloc.o \
 kernel/string.o \
-kernel/user_thread.o \
-kernel/user.o \
-
-
+kernel/kernel_thread.o \
+kernel/idle.o \
+kernel/sysctl.o \
+kernel/task.o \
+kernel/timer.o \
+kernel/plic.o
 ifeq ($(OS),Windows_NT)
 	r := $(shell cd bootloader/k210 && sh just.sh)
 	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)
@@ -41,7 +43,7 @@ entry_k210:kernel/entry_k210.S
 	$(CC) $(CFLAGS) -c entry_k210.S
 clean:
 	rm kernel/*.d kernel/*.o kernel/kernel.elf
-upload:
+upload:all
 	$(command_path)kflash_py k210.bin
 clean_cache:
 	rm bootloader/target -rf

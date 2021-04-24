@@ -6,25 +6,32 @@
 #include "include/printk.h"
 #include "include/logo.h"
 #include "include/kmalloc.h"
-#include "include/user_test.h"
-#include "include/user_thread.h"
-
+#include "include/idle.h"
+#include "include/kernel_thread.h"
+#include "include/timer.h"
+#include "include/sysctl.h"
+#include "include/plic.h"
 extern void _trap_entry(void);
+void timer_callback(void *ctx) {
+  (void)ctx;
+  printk("timer test!\n");
+}
 void kernel_init(void) {
   _write_mtvec((uint64_t)_trap_entry);
   init_kmalloc();
+  plic_init();
+  timer_init(TIMER_DEVICE_0);
+  timer_set_interval(TIMER_DEVICE_0,TIMER_CHANNEL_0,100000000000);
+  timer_set_irq(TIMER_DEVICE_0,TIMER_CHANNEL_0,timer_callback,1);
+  timer_set_enable(TIMER_DEVICE_0,TIMER_CHANNEL_0,1);
+  sysctl_enable_irq();
   //syscalls[64] = (syscall_func)sys_write;
   printk("init kernel.........OK\n");
 }
 int main(void) {
     kernel_init();
     print_logo();
-    //user_thread *thread = create_thread(user_test);
-    //start_thread(thread);
-    //char *test = "test\n";
-    //ECALL(SYS_write,1,test,5);
     ECALL(0,0,0,0);
-    printk("failed\n");
     while (1);
     return 0;
 }

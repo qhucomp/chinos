@@ -14,6 +14,6 @@ loop:
     .align 12
     .globl kernel_stack
 kernel_stack:
-    .space 4096 * 4 * 2
+    .space 4096 * 8
     .globl kernel_stack_top
 kernel_stack_top:
