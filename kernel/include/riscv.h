@@ -22,8 +22,8 @@
   else \
     asm volatile ("csrrs %0, " #reg ", %1" : "=r"(__tmp) : "r"(bit)); \
   __tmp; })
-//#define read_time() read_csr(mtime)
-//#define read_cycle() read_csr(mcycle)
+#define read_time() read_csr(mtime)
+#define read_cycle() read_csr(mcycle)
 #define current_coreid() read_csr(mhartid)
 
 #define _read_mcause()                                      \
@@ -60,11 +60,6 @@
     asm volatile("csrr %0,mstatus"::"r"(a0):"memory");              \
 })
 
-/*#define write_csr(reg, val) ({ \
-  if (__builtin_constant_p(val) && (unsigned long)(val) < 32) \
-    asm volatile ("csrw " #reg ", %0" :: "i"(val)); \
-  else \
-    asm volatile ("csrw " #reg ", %0" :: "r"(val):"memory"); })*/
 #define MPP_MACHINE     (3 << 11)
 #define MPP_HYPERVISOR  (2 << 11)
 #define MPP_SUPERVISOR  (1 << 11)
@@ -75,11 +70,10 @@
 #define CAUSE_HYPERVISOR_ECALL  (0xa)
 #define CAUSE_MACHINE_ECALL     (0xb)
 
+/**
+ * @brief 设置mstatus的mpp字段
+ * 
+ * @param[in] mpp mpp字段的值
+ */
 void set_mpp(uint64_t mpp);
-
-#define read_time() read_csr(mtime)
-#define read_cycle() read_csr(mcycle)
-//#define mie
-//#define mstatus
-//让vscode只在这个文件内提示错误
 #endif

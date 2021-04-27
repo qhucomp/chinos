@@ -3,9 +3,9 @@
 #include "include/platform.h"
 #include "include/riscv.h"
 #include "include/encoding.h"
+#include "include/misc.h"
 
 //ref standalone plic.c
-#define NULL ((void *)0)
 volatile plic_t *const plic = (volatile plic_t *)PLIC_BASE_ADDR;
 
 static plic_instance_t plic_instance[PLIC_NUM_CORES][IRQN_MAX];

@@ -12,7 +12,15 @@ int printk(const char *fmt,...) {
     va_end(ap);
     return ret;
 }
-
+/**
+ * @brief 将数字转换为字符串
+ * 
+ * @param[in] val 被转换的数字的值
+ * 
+ * @param[in] buf 缓冲数组
+ * 
+ * @param[in] radix 转换为radix进制
+ */
 static char *itoa(int64_t val, char *buf, unsigned radix)
 {
     char   *p;             
@@ -20,7 +28,7 @@ static char *itoa(int64_t val, char *buf, unsigned radix)
     char   temp;           
     unsigned   digval;     
     p = buf;
-    if(val <0)
+    if(val < 0)
     {
         *p++ = '-';
         val = -val;

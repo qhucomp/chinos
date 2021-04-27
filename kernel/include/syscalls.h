@@ -39,7 +39,18 @@ extern char *user_heap_end;
 
 typedef uintptr_t (*syscall_func)(uintptr_t,uintptr_t,uintptr_t,uintptr_t);
 extern syscall_func syscalls[300];
+
+/**
+ * @brief 处理系统调用
+ * 
+ * @param[in] extension 系统调用号
+ * 
+ * @param[in] reg 寄存器
+ * 
+ * @return 系统调用的返回
+ */
 uintptr_t handle_ecall(uintptr_t extension,regs *reg);
+
 ssize_t sys_write(int fd,void *buf,size_t count);
 void *sys_brk(size_t pos);
 #endif

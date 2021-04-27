@@ -48,6 +48,7 @@ _trap_entry:
     mv a0,sp
     csrr a1,mepc
     call _start_trap
+
 .section .text
 .global _restore
 _restore:
@@ -59,7 +60,6 @@ _restore:
     LOAD x7,7
     LOAD x8,8
     LOAD x9,9
-    #LOAD x10,10
     LOAD x11,11
     LOAD x12,12
     LOAD x13,13

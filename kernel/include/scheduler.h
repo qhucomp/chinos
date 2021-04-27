@@ -2,10 +2,16 @@
 #define __SCHEDULER_H
 #include <stdint.h>
 
+//上次中断的时间
 extern uint64_t last_time_interrupt; 
-//初始化调度器
+/**
+ * @brief 进程调度器初始化
+ */
 void init_scheduler(void);
 
-//执行任务调度
+/**
+ * @brief 执行任务调度
+ * @param[in] data 无作用
+ */
 void task_scheduler(void *data);
 #endif
