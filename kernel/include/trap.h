@@ -36,5 +36,5 @@ typedef struct __regs {
     uint64_t x31;
 } regs;
 
-void _start_trap(regs reg);
+void _start_trap(regs *reg);
 #endif

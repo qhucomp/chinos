@@ -5,6 +5,7 @@
 #include <sys/types.h>
 
 //ref standalone sysctl.h
+
 /**
  * @brief      System controller register
  *
@@ -835,11 +836,85 @@ typedef struct _sysctl
 
 extern volatile sysctl_t *const sysctl;
 
+
+/**
+ * @brief       Enable clock for peripheral
+ *
+ * @param[in]   clock       The clock to be enable
+ *
+ * @return      result
+ *     - 0      Success
+ *     - Other  Fail
+ */
 int sysctl_clock_enable(sysctl_clock_t clock);
+
+/**
+ * @brief       Enable clock for peripheral
+ *
+ * @param[in]   clock       The clock to be disable
+ *
+ * @return      result
+ *     - 0      Success
+ *     - Other  Fail
+ */
+int sysctl_clock_disable(sysctl_clock_t clock);
+
+/**
+ * @brief       Get base clock frequency by clock id
+ *
+ * @param[in]   clock       The clock id
+ *
+ * @return      The clock frequency
+ */
 uint32_t sysctl_clock_get_freq(sysctl_clock_t clock);
+
 uint32_t sysctl_clock_source_get_freq(sysctl_clock_source_t input);
+
+/**
+ * @brief       Sysctl clock get threshold
+ *
+ * @param[in]   which       Which threshold to get
+ *
+ * @return      The threshold value
+ *     - Other  Value of threshold
+ *     - -1     Fail
+ */
 int sysctl_clock_get_threshold(sysctl_threshold_t which);
+
+/**
+ * @brief       Sysctl clock get clock select
+ *
+ * @param[in]   which  Which clock select to get
+ *
+ * @return      The clock select value
+ *     - Other  Value of clock select
+ *     - -1     Fail
+ */
 int sysctl_clock_get_clock_select(sysctl_clock_select_t which);
+
+/**
+ * @brief       Get PLL frequency
+ *
+ * @param[in]   pll     The PLL id
+ *
+ * @return      The frequency of PLL
+ */
 uint32_t sysctl_pll_get_freq(sysctl_pll_t pll);
+
+/**
+ * @brief       Enable interrupt
+ */
 void sysctl_enable_irq(void);
+
+/**
+ * @brief       Disable interrupt
+ */
+void sysctl_disable_irq(void);
+
+/**
+ * @brief       Get the time start up to now
+ *
+ * @return      The time of microsecond
+ */
+uint64_t sysctl_get_time_us(void);
 #endif

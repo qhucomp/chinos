@@ -8,5 +8,6 @@
 task_struct *kernel_thread(void *address) {
     task_struct *task = alloc_task();
     add_task(task);
+    task->epc = (uintptr_t)address;
     return task;
 }

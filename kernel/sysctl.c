@@ -261,6 +261,14 @@ int sysctl_clock_enable(sysctl_clock_t clock)
     return 0;
 }
 
+int sysctl_clock_disable(sysctl_clock_t clock)
+{
+    if(clock >= SYSCTL_CLOCK_MAX)
+        return -1;
+    sysctl_clock_device_en(clock, 0);
+    return 0;
+}
+
 uint32_t sysctl_clock_get_freq(sysctl_clock_t clock)
 {
     uint32_t source = 0;
@@ -836,4 +844,16 @@ void sysctl_enable_irq(void)
 {
     set_csr(mie, MIP_MEIP);
     set_csr(mstatus, MSTATUS_MIE);
+}
+/*
+void sysctl_enable_irq(void)
+{
+    set_csr(mie, MIP_MEIP);
+    set_csr(mstatus, MSTATUS_MIE);
+}*/
+
+uint64_t sysctl_get_time_us(void)
+{
+    uint64_t v_cycle = read_cycle();
+    return v_cycle * 1000000 / sysctl_clock_get_freq(SYSCTL_CLOCK_CPU);
 }

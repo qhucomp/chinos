@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 //ref standalone timer.h
+
 /* clang-format off */
 typedef struct _timer_channel
 {
@@ -70,10 +71,43 @@ extern volatile kendryte_timer_t *const timer[3];
  */
 typedef int (*timer_callback_t)(void *ctx);
 
-
+/**
+ * @brief       Init timer
+ *
+ * @param[in]   timer       timer
+ */
 void timer_init(timer_device_number_t timer_number);
+
+/**
+ * @brief       [DEPRECATED] Set timer timeout function
+ *
+ * @param[in]   timer           timer
+ * @param[in]   channel         channel
+ * @param[in]   func            timeout function
+ * @param[in]   priority        interrupt priority
+ *
+ */
 size_t timer_set_interval(timer_device_number_t timer_number, timer_channel_number_t channel, size_t nanoseconds);
+
+/**
+ * @brief       [DEPRECATED] Set timer timeout function
+ *
+ * @param[in]   timer           timer
+ * @param[in]   channel         channel
+ * @param[in]   func            timeout function
+ * @param[in]   priority        interrupt priority
+ *
+ */
 void timer_set_irq(timer_device_number_t timer_number, timer_channel_number_t channel, void (*func)(), uint32_t priority);
+
+/**
+ * @brief       Enable timer
+ *
+ * @param[in]   timer       timer
+ * @param[in]   channel     channel
+ * @param[in]   enable      Enable or disable
+ *
+ */
 void timer_set_enable(timer_device_number_t timer_number, timer_channel_number_t channel, uint32_t enable);
 /* Machine interrupt mask for 64 bit system, 0x8000 0000 0000 0000 */
 #define CAUSE_MACHINE_IRQ_MASK            (0x1ULL << 63)
@@ -81,4 +115,6 @@ void timer_set_enable(timer_device_number_t timer_number, timer_channel_number_t
 /* Machine interrupt reason mask for 64 bit system, 0x7FFF FFFF FFFF FFFF */
 #define CAUSE_MACHINE_IRQ_REASON_MASK     (CAUSE_MACHINE_IRQ_MASK - 1)
 
+//系统最小调度时间片
+#define MIN_TIME_STEP   (10000000UL)
 #endif

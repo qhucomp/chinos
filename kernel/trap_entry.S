@@ -46,13 +46,12 @@ _trap_entry:
     STORE x30,30
     STORE x31,31
     mv a0,sp
+    csrr a1,mepc
     call _start_trap
-
 .section .text
 .global _restore
 _restore:
     LOAD x1,1
-    LOAD x2,2
     LOAD x3,3
     LOAD x4,4
     LOAD x5,5
@@ -60,7 +59,7 @@ _restore:
     LOAD x7,7
     LOAD x8,8
     LOAD x9,9
-    LOAD x10,10
+    #LOAD x10,10
     LOAD x11,11
     LOAD x12,12
     LOAD x13,13
@@ -82,6 +81,8 @@ _restore:
     LOAD x29,29
     LOAD x30,30
     LOAD x31,31
+    mv x10,sp
     addi sp,sp,32*REGBYTES
     csrrw sp,mscratch,sp
+    ld  sp, 11*REGBYTES(x10)
     mret

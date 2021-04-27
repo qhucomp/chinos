@@ -44,7 +44,7 @@ struct zone *alloc_zone(void) {
     for(size_t i = 0;i < bitmap_size;i++) {
         if (~(bitmap[i] & 0xffffffffffffffff)) {
             for(int j = 0;j < 64;j++)
-                if (bitmap[i] & (1 << j)) {
+                if (!(bitmap[i] & (1 << j))) {
                     bitmap[i] |= 1 << j;
                     return &zone_array[i + j];
                 }

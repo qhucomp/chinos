@@ -1,13 +1,14 @@
 #include "include/platform.h"
 #include "include/timer.h"
-#include <stdint.h>
-#include <stddef.h>
 #include "include/sysctl.h"
 #include "include/encoding.h"
 #include "include/riscv.h"
 #include "include/clint.h"
 #include "include/printk.h"
 #include "include/plic.h"
+#include "include/assert.h"
+#include <stdint.h>
+#include <stddef.h>
 typedef int bool;
 
 typedef struct timer_instance
@@ -38,16 +39,10 @@ void timer_init(timer_device_number_t timer_number) {
 size_t timer_set_interval(timer_device_number_t timer_number, timer_channel_number_t channel, size_t nanoseconds)
 {
     uint32_t clk_freq = sysctl_clock_get_freq(SYSCTL_CLOCK_TIMER0 + timer_number);
-    printk("freq:%ld\n",clk_freq);
     size_t min_step = 1000000000 / clk_freq;
-    size_t value = (size_t)(nanoseconds / min_step);
-    printk("value:%ld\n",value);
-    if (!(value > 0 && value < UINT32_MAX)) {
-        printk("timer_set_interval():Error!");
-        while(1);
-    }
+    size_t value = nanoseconds / min_step;
+    assert(value > 0 && value < UINT32_MAX);
     timer[timer_number]->channel[channel].load_count = (uint32_t)value;
-    printk("load_count:%ld",timer[timer_number]->channel[channel].load_count);
     return (min_step * value);
 }
 #define readl(addr) (*(volatile uint32_t *)(addr))
