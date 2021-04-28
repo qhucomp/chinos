@@ -6,5 +6,5 @@
 //运行在MACHINE态
 void idle(void) {
     printk("idle init..........OK\n");
-    while(1)
+    while(1);
 }

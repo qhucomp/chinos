@@ -15,30 +15,22 @@
 #include "include/thread_test.h"
 extern void _trap_entry(void);
 void kernel_init(void) {
-  _write_mtvec((uint64_t)_trap_entry);
-  init_kmalloc();
-  print_logo();
-  //指向第一个指向的任务
-  current = &init_task;
-  current->epc = (uintptr_t)idle;
-  current->create_time = sysctl_get_time_us() / 1000;
-  current->left_time = 10;
-  current->pid = 0;
-  pid_bitmap[0] = 1;
-  plic_init();
+    _write_mtvec((uint64_t)_trap_entry);
+    init_kmalloc();
+    plic_init();
 
-  //调度器初始化
-  init_scheduler();
+    //调度器初始化
+    init_scheduler();
 
-  task1 = kernel_thread(thread_test1);
-  task2 = kernel_thread(thread_test2);
-  task1->sp = 0x80600000;
-  task2->sp = 0x80500000;
-  current = task1;
-  //开启中断
-  sysctl_enable_irq();
-  last_time_interrupt = sysctl_get_time_us() / 1000;
-  printk("init kernel.........OK\n");
+    //创建两个内核线程
+    kernel_thread(thread_test1)->sp = 0x80600000;
+    kernel_thread(thread_test2)->sp = 0x80500000;
+
+    //开启中断
+    sysctl_enable_irq();
+    last_time_interrupt = sysctl_get_time_us() / 1000;
+    printk("init kernel.........OK\n");
+    print_logo();
 }
 int main(void) {
     kernel_init();

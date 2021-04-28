@@ -22,9 +22,9 @@ void thread_test1(void) {
 }
 
 void thread_test2(void) {
-    char *test2 = "thread_test2\n";
     unsigned long sp;
     asm volatile("mv %0,sp":"=r"(sp));
+    char *test2 = "thread_test2";
     while(1) {
         printk("sp:%p %p %s\n",sp,test2,test2);
     }
