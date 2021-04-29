@@ -917,4 +917,35 @@ void sysctl_disable_irq(void);
  * @return      The time of microsecond
  */
 uint64_t sysctl_get_time_us(void);
+
+/**
+ * @brief       Reset device by reset controller
+ *
+ * @param[in]   reset       The reset signal
+ */
+void sysctl_reset(sysctl_reset_t reset);
+
+/**
+ * @brief       Sysctl clock set clock select
+ *
+ * @param[in]   which       Which clock select to set
+ * @param[in]   select      The clock select value
+ *
+ * @return      result
+ *     - 0      Success
+ *     - Other  Fail
+ */
+int sysctl_clock_set_clock_select(sysctl_clock_select_t which, int select);
+
+/**
+ * @brief       Sysctl clock set threshold
+ *
+ * @param[in]   which           Which threshold to set
+ * @param[in]   threshold       The threshold value
+ *
+ * @return      result
+ *     - 0      Success
+ *     - Other  Fail
+ */
+int sysctl_clock_set_threshold(sysctl_threshold_t which, int threshold);
 #endif

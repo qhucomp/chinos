@@ -11,4 +11,6 @@
  * @param[in] count 内存大小
  */
 void *memset(void *__dst,int c,size_t count);
+
+void *memcpy(void *__dest,const void *__src,size_t n);
 #endif

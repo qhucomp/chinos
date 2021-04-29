@@ -857,3 +857,274 @@ uint64_t sysctl_get_time_us(void)
     uint64_t v_cycle = read_cycle();
     return v_cycle * 1000000 / sysctl_clock_get_freq(SYSCTL_CLOCK_CPU);
 }
+
+static void sysctl_reset_ctl(sysctl_reset_t reset, uint8_t rst_value)
+{
+    switch(reset)
+    {
+        case SYSCTL_RESET_SOC:
+            sysctl->soft_reset.soft_reset = rst_value;
+            break;
+        case SYSCTL_RESET_ROM:
+            sysctl->peri_reset.rom_reset = rst_value;
+            break;
+        case SYSCTL_RESET_DMA:
+            sysctl->peri_reset.dma_reset = rst_value;
+            break;
+        case SYSCTL_RESET_AI:
+            sysctl->peri_reset.ai_reset = rst_value;
+            break;
+        case SYSCTL_RESET_DVP:
+            sysctl->peri_reset.dvp_reset = rst_value;
+            break;
+        case SYSCTL_RESET_FFT:
+            sysctl->peri_reset.fft_reset = rst_value;
+            break;
+        case SYSCTL_RESET_GPIO:
+            sysctl->peri_reset.gpio_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI0:
+            sysctl->peri_reset.spi0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI1:
+            sysctl->peri_reset.spi1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI2:
+            sysctl->peri_reset.spi2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI3:
+            sysctl->peri_reset.spi3_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S0:
+            sysctl->peri_reset.i2s0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S1:
+            sysctl->peri_reset.i2s1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S2:
+            sysctl->peri_reset.i2s2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C0:
+            sysctl->peri_reset.i2c0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C1:
+            sysctl->peri_reset.i2c1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C2:
+            sysctl->peri_reset.i2c2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART1:
+            sysctl->peri_reset.uart1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART2:
+            sysctl->peri_reset.uart2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART3:
+            sysctl->peri_reset.uart3_reset = rst_value;
+            break;
+        case SYSCTL_RESET_AES:
+            sysctl->peri_reset.aes_reset = rst_value;
+            break;
+        case SYSCTL_RESET_FPIOA:
+            sysctl->peri_reset.fpioa_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER0:
+            sysctl->peri_reset.timer0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER1:
+            sysctl->peri_reset.timer1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER2:
+            sysctl->peri_reset.timer2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_WDT0:
+            sysctl->peri_reset.wdt0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_WDT1:
+            sysctl->peri_reset.wdt1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SHA:
+            sysctl->peri_reset.sha_reset = rst_value;
+            break;
+        case SYSCTL_RESET_RTC:
+            sysctl->peri_reset.rtc_reset = rst_value;
+            break;
+
+        default:
+            break;
+    }
+}
+
+
+void sysctl_reset(sysctl_reset_t reset)
+{
+    sysctl_reset_ctl(reset, 1);
+    for(int i = 0;i < 2048;i++);
+    //usleep(10);
+    sysctl_reset_ctl(reset, 0);
+}
+
+int sysctl_clock_set_clock_select(sysctl_clock_select_t which, int select)
+{
+    int result = 0;
+    switch(which)
+    {
+        /*
+         * These clock select is 1 bit width
+         */
+        case SYSCTL_CLOCK_SELECT_PLL0_BYPASS:
+            sysctl->pll0.pll_bypass0 = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_PLL1_BYPASS:
+            sysctl->pll1.pll_bypass1 = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_PLL2_BYPASS:
+            sysctl->pll2.pll_bypass2 = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_ACLK:
+            sysctl->clk_sel0.aclk_sel = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_SPI3:
+            sysctl->clk_sel0.spi3_clk_sel = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_TIMER0:
+            sysctl->clk_sel0.timer0_clk_sel = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_TIMER1:
+            sysctl->clk_sel0.timer1_clk_sel = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_TIMER2:
+            sysctl->clk_sel0.timer2_clk_sel = select & 0x01;
+            break;
+        case SYSCTL_CLOCK_SELECT_SPI3_SAMPLE:
+            sysctl->clk_sel1.spi3_sample_clk_sel = select & 0x01;
+            break;
+
+        /*
+         * These clock select is 2 bit width
+         */
+        case SYSCTL_CLOCK_SELECT_PLL2:
+            sysctl->pll2.pll_ckin_sel2 = select & 0x03;
+            break;
+
+        default:
+            result = -1;
+            break;
+    }
+
+    return result;
+}
+
+int sysctl_clock_set_threshold(sysctl_threshold_t which, int threshold)
+{
+    int result = 0;
+    switch(which)
+    {
+        /*
+         * These threshold is 2 bit width
+         */
+        case SYSCTL_THRESHOLD_ACLK:
+            sysctl->clk_sel0.aclk_divider_sel = (uint8_t)threshold & 0x03;
+            break;
+
+        /*
+         * These threshold is 3 bit width
+         */
+        case SYSCTL_THRESHOLD_APB0:
+            sysctl->clk_sel0.apb0_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+        case SYSCTL_THRESHOLD_APB1:
+            sysctl->clk_sel0.apb1_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+        case SYSCTL_THRESHOLD_APB2:
+            sysctl->clk_sel0.apb2_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+
+        /*
+         * These threshold is 4 bit width
+         */
+        case SYSCTL_THRESHOLD_SRAM0:
+            sysctl->clk_th0.sram0_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case SYSCTL_THRESHOLD_SRAM1:
+            sysctl->clk_th0.sram1_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case SYSCTL_THRESHOLD_AI:
+            sysctl->clk_th0.ai_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case SYSCTL_THRESHOLD_DVP:
+            sysctl->clk_th0.dvp_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case SYSCTL_THRESHOLD_ROM:
+            sysctl->clk_th0.rom_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+
+        /*
+         * These threshold is 8 bit width
+         */
+        case SYSCTL_THRESHOLD_SPI0:
+            sysctl->clk_th1.spi0_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_SPI1:
+            sysctl->clk_th1.spi1_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_SPI2:
+            sysctl->clk_th1.spi2_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_SPI3:
+            sysctl->clk_th1.spi3_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_TIMER0:
+            sysctl->clk_th2.timer0_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_TIMER1:
+            sysctl->clk_th2.timer1_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_TIMER2:
+            sysctl->clk_th2.timer2_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2S0_M:
+            sysctl->clk_th4.i2s0_mclk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2S1_M:
+            sysctl->clk_th4.i2s1_mclk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2S2_M:
+            sysctl->clk_th5.i2s2_mclk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2C0:
+            sysctl->clk_th5.i2c0_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2C1:
+            sysctl->clk_th5.i2c1_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2C2:
+            sysctl->clk_th5.i2c2_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_WDT0:
+            sysctl->clk_th6.wdt0_clk_threshold = (uint8_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_WDT1:
+            sysctl->clk_th6.wdt1_clk_threshold = (uint8_t)threshold;
+            break;
+
+        /*
+         * These threshold is 16 bit width
+         */
+        case SYSCTL_THRESHOLD_I2S0:
+            sysctl->clk_th3.i2s0_clk_threshold = (uint16_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2S1:
+            sysctl->clk_th3.i2s1_clk_threshold = (uint16_t)threshold;
+            break;
+        case SYSCTL_THRESHOLD_I2S2:
+            sysctl->clk_th4.i2s2_clk_threshold = (uint16_t)threshold;
+            break;
+
+        default:
+            result = -1;
+            break;
+    }
+    return result;
+}
+

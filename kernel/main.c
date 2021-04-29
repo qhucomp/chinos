@@ -13,18 +13,22 @@
 #include "include/plic.h"
 #include "include/scheduler.h"
 #include "include/thread_test.h"
+#include "include/diskio.h"
+#include "include/fpioa.h"
+#include "include/gpiohs.h"
+#include "include/sdcard.h"
+#include "include/diskio.h"
 extern void _trap_entry(void);
 void kernel_init(void) {
     _write_mtvec((uint64_t)_trap_entry);
     init_kmalloc();
     plic_init();
-
     //调度器初始化
     init_scheduler();
-
     //创建两个内核线程
     kernel_thread(thread_test1)->sp = 0x80600000;
     kernel_thread(thread_test2)->sp = 0x80500000;
+    disk_init();
 
     //开启中断
     sysctl_enable_irq();

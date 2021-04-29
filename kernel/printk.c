@@ -83,6 +83,13 @@ int vfprintk(const char *fmt,va_list ap) {
                         for(size_t len = 0;buf[len] != 0;len++)
                             uart_send(buf[len]);
                         break;
+                    case 'X':
+                        itoa(va_arg(ap,uintptr_t),buf,16);
+                        uart_send('0');
+                        uart_send('x');
+                        for(size_t len = 0;buf[len] != 0;len++)
+                            uart_send(buf[len]);
+                        break;
                     case 'o':
                         itoa(va_arg(ap,int),buf,8);
                         for(size_t len = 0;buf[len] != 0;len++)
