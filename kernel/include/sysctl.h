@@ -834,6 +834,25 @@ typedef struct _sysctl
     uint32_t resv31;
 } __attribute__((packed, aligned(4))) sysctl_t;
 
+/**
+ * @brief       Abstruct PLL struct
+ */
+typedef struct _sysctl_general_pll
+{
+    uint32_t clkr : 4;
+    uint32_t clkf : 6;
+    uint32_t clkod : 4;
+    uint32_t bwadj : 6;
+    uint32_t pll_reset : 1;
+    uint32_t pll_pwrd : 1;
+    uint32_t pll_intfb : 1;
+    uint32_t pll_bypass : 1;
+    uint32_t pll_test : 1;
+    uint32_t pll_out_en : 1;
+    uint32_t pll_ckin_sel : 2;
+    uint32_t reserved : 4;
+} __attribute__((packed, aligned(4))) sysctl_general_pll_t;
+
 extern volatile sysctl_t *const sysctl;
 
 
@@ -948,4 +967,35 @@ int sysctl_clock_set_clock_select(sysctl_clock_select_t which, int select);
  *     - Other  Fail
  */
 int sysctl_clock_set_threshold(sysctl_threshold_t which, int threshold);
+
+/**
+ * @brief       Select DMA channel handshake peripheral signal
+ *
+ * @param[in]   channel     The DMA channel
+ * @param[in]   select      The peripheral select
+ *
+ * @return      Result
+ *     - 0      Success
+ *     - Other  Fail
+ */
+int sysctl_dma_select(sysctl_dma_channel_t channel, sysctl_dma_select_t select);
+
+/**
+ * @brief       Init PLL freqency
+ * @param[in]   pll            The PLL id
+ * @param[in]   pll_freq       The desired frequency in Hz
+
+ */
+uint32_t sysctl_pll_set_freq(sysctl_pll_t pll, uint32_t pll_freq);
+
+/**
+ * @brief       Enable the PLL and power on with reset
+ *
+ * @param[in]   pll     The pll id
+ *
+ * @return      Result
+ *     - 0      Success
+ *     - Other  Fail
+ */
+int sysctl_pll_enable(sysctl_pll_t pll);
 #endif

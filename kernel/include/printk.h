@@ -15,4 +15,13 @@ int printk(const char *fmt,...);
  * @param[in] ap 被格式化的参数
  */
 int vfprintk(const char *fmt,va_list ap);
+
+/**
+ * @brief 引发异常
+ */
+#define panic(message)                                                  \
+({                                                                      \
+    printk("(%s:%d)%s:%s\n",__FILE__,__LINE__,__func__,message);        \
+    while(1);                                                           \
+})
 #endif

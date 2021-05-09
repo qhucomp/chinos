@@ -11,9 +11,10 @@
 #include "include/sdcard.h"
 #include "include/printk.h"
 #include "include/fpioa.h"
+#include "include/dmac.h"
 /* Definitions of physical drive number for each drive */
 #define M0 0 /* Example: Map MMC/SD card to physical drive 0 */
-
+int rw_count;
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
 /*-----------------------------------------------------------------------*/
@@ -40,66 +41,98 @@ DSTATUS disk_initialize(uint8_t pdrv)
 
 DRESULT disk_read(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
 {
-    if(sd_read_sector(buff, sector, count) == 0)
-        return RES_OK;
-    return RES_ERROR;
+    if (buff == NULL) {
+        printk("Error\n");
+        return RES_ERROR;
+    }
+    int repeat_count = 0xffff;
+    for(int c = 0;c < count;c++) {
+        // if (rw_count >= 5000) {
+        //     disk_init();
+        //     rw_count = 0;
+        // }
+        repeat_count = 0xffff;
+start:
+        if(sd_read_sector(buff + c*512,sector + c,1)) {
+            disk_init();
+            //printk("count:%d\n",repeat_count);
+            if (repeat_count) {
+                repeat_count -= 1;
+                goto start;
+            }
+            return RES_ERROR;
+        }
+        rw_count++;
+        //printk("rw_count:%d read %d address:%p\n",rw_count,c,buff + c*512);
+    }
+    return RES_OK;
 }
 
 /*-----------------------------------------------------------------------*/
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_write(uint8_t pdrv, const uint8_t *buff, uint32_t sector, uint32_t count)
-{
-    if(sd_write_sector((uint8_t *)buff, sector, count) == 0)
-        return RES_OK;
-    return RES_ERROR;
-}
+// DRESULT disk_write(uint8_t pdrv, const uint8_t *buff, uint32_t sector, uint32_t count)
+// {
+//     uint32_t i,j;
+//     j = 0;
+//     i = count / MAX_SECTOR;
+//     if (i == 0) {
+//         if (sd_write_sector((uint8_t *)buff,sector,count) == 0)
+//             return RES_OK;
+//     } else
+//         j = count - i*MAX_SECTOR;
+
+//     for(int c = 0;c < i;c++)
+//         if(sd_write_sector((uint8_t *)buff + c*MAX_SECTOR*512,sector + c*MAX_SECTOR,MAX_SECTOR))
+//             return RES_ERROR;
+//     return sd_write_sector((uint8_t *)buff + i*MAX_SECTOR*512,sector + i*MAX_SECTOR,j) ? RES_ERROR : RES_OK;
+// }
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_ioctl(uint8_t pdrv, uint8_t cmd, void *buff)
-{
-    DRESULT res = RES_ERROR;
+// DRESULT disk_ioctl(uint8_t pdrv, uint8_t cmd, void *buff)
+// {
+//     DRESULT res = RES_ERROR;
 
-    switch(cmd)
-    {
-        /* Make sure that no pending write process */
-        case CTRL_SYNC:
-            res = RES_OK;
-            break;
-        /* Get number of sectors on the disk (uint32_t) */
-        case GET_SECTOR_COUNT:
-            *(uint32_t *)buff = (cardinfo.SD_csd.DeviceSize + 1) << 10;
-            res = RES_OK;
-            break;
-        /* Get R/W sector size (WORD) */
-        case GET_SECTOR_SIZE:
-            *(uint32_t *)buff = cardinfo.CardBlockSize;
-            res = RES_OK;
-            break;
-        /* Get erase block size in unit of sector (uint32_t) */
-        case GET_BLOCK_SIZE:
-            *(uint32_t *)buff = cardinfo.CardBlockSize;
-            res = RES_OK;
-            break;
-        default:
-            res = RES_PARERR;
-    }
-    return res;
-}
+//     switch(cmd)
+//     {
+//         /* Make sure that no pending write process */
+//         case CTRL_SYNC:
+//             res = RES_OK;
+//             break;
+//         /* Get number of sectors on the disk (uint32_t) */
+//         case GET_SECTOR_COUNT:
+//             *(uint32_t *)buff = (cardinfo.SD_csd.DeviceSize + 1) << 10;
+//             res = RES_OK;
+//             break;
+//         /* Get R/W sector size (WORD) */
+//         case GET_SECTOR_SIZE:
+//             *(uint32_t *)buff = cardinfo.CardBlockSize;
+//             res = RES_OK;
+//             break;
+//         /* Get erase block size in unit of sector (uint32_t) */
+//         case GET_BLOCK_SIZE:
+//             *(uint32_t *)buff = cardinfo.CardBlockSize;
+//             res = RES_OK;
+//             break;
+//         default:
+//             res = RES_PARERR;
+//     }
+//     return res;
+// }
 
 DRESULT disk_init(void) {
-    printk("/******************sdcard test*****************/\n");
+    //printk("/******************sdcard test*****************/\n");
     uint8_t status = sd_init();
     if (status != 0) {
         printk("sd init %d",status);
         return RES_ERROR;
     }
-   printk("card info status %d\n", status);
-   printk("CardCapacity:%ld\n", cardinfo.CardCapacity);
-   printk("CardBlockSize:%d\n", cardinfo.CardBlockSize);
+//    printk("card info status %d\n", status);
+//    printk("CardCapacity:%ld\n", cardinfo.CardCapacity);
+//    printk("CardBlockSize:%d\n", cardinfo.CardBlockSize);
   return RES_OK;
 }

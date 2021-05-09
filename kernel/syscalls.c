@@ -14,7 +14,7 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return 0;
     }
 }
-
+#undef putchar
 static void putchar(char ch) {
     uart_send(ch);
 }

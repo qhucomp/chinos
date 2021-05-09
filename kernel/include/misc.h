@@ -54,5 +54,27 @@ uint32_t get_bit(volatile uint32_t *bits, uint32_t mask, size_t offset);
  * @return      The bit value
  */
 uint32_t get_gpio_bit(volatile uint32_t *bits, size_t offset);
+
+#define readb(addr) (*(volatile uint8_t *)(addr))
+#define readw(addr) (*(volatile uint16_t *)(addr))
+#define readl(addr) (*(volatile uint32_t *)(addr))
+#define readq(addr) (*(volatile uint64_t *)(addr))
+
+#define writeb(v, addr)                      \
+    {                                        \
+        (*(volatile uint8_t *)(addr)) = (v); \
+    }
+#define writew(v, addr)                       \
+    {                                         \
+        (*(volatile uint16_t *)(addr)) = (v); \
+    }
+#define writel(v, addr)                       \
+    {                                         \
+        (*(volatile uint32_t *)(addr)) = (v); \
+    }
+#define writeq(v, addr)                       \
+    {                                         \
+        (*(volatile uint64_t *)(addr)) = (v); \
+    }
 typedef int bool;
 #endif

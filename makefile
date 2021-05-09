@@ -15,7 +15,20 @@ kernel/idle.o \
 kernel/sysctl.o \
 kernel/task.o \
 kernel/timer.o \
-kernel/plic.o
+kernel/plic.o \
+kernel/thread_test.o \
+kernel/scheduler.o \
+kernel/spi.o \
+kernel/misc.o \
+kernel/fpioa.o \
+kernel/gpiohs.o \
+kernel/sdcard.o \
+kernel/diskio.o \
+kernel/fat32.o \
+kernel/vfs.o \
+kernel/sleep.o \
+kernel/dmac.o 
+
 ifeq ($(OS),Windows_NT)
 	r := $(shell cd bootloader/k210 && sh just.sh)
 	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)
@@ -28,7 +41,7 @@ prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
 OBJCOPY := $(prefix)objcopy
-CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector
+CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)

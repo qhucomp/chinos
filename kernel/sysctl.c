@@ -3,6 +3,9 @@
 #include "include/platform.h"
 #include "include/riscv.h"
 #include "include/encoding.h"
+#include "include/sleep.h"
+
+//#include <math.h>
 volatile sysctl_t *const sysctl = (volatile sysctl_t *)SYSCTL_BASE_ADDR;
 #define SYSCTRL_CLOCK_FREQ_IN0 (26000000UL)
 
@@ -1128,3 +1131,420 @@ int sysctl_clock_set_threshold(sysctl_threshold_t which, int threshold)
     return result;
 }
 
+// int sysctl_dma_select(sysctl_dma_channel_t channel, sysctl_dma_select_t select)
+// {
+//     sysctl_dma_sel0_t dma_sel0;
+//     sysctl_dma_sel1_t dma_sel1;
+
+//     /* Read register from bus */
+//     dma_sel0 = sysctl->dma_sel0;
+//     dma_sel1 = sysctl->dma_sel1;
+//     switch(channel)
+//     {
+//         case SYSCTL_DMA_CHANNEL_0:
+//             dma_sel0.dma_sel0 = select;
+//             break;
+
+//         case SYSCTL_DMA_CHANNEL_1:
+//             dma_sel0.dma_sel1 = select;
+//             break;
+
+//         case SYSCTL_DMA_CHANNEL_2:
+//             dma_sel0.dma_sel2 = select;
+//             break;
+
+//         case SYSCTL_DMA_CHANNEL_3:
+//             dma_sel0.dma_sel3 = select;
+//             break;
+
+//         case SYSCTL_DMA_CHANNEL_4:
+//             dma_sel0.dma_sel4 = select;
+//             break;
+
+//         case SYSCTL_DMA_CHANNEL_5:
+//             dma_sel1.dma_sel5 = select;
+//             break;
+
+//         default:
+//             return -1;
+//     }
+
+//     /* Write register back to bus */
+//     sysctl->dma_sel0 = dma_sel0;
+//     sysctl->dma_sel1 = dma_sel1;
+
+//     return 0;
+// }
+
+static uint32_t sysctl_pll_source_set_freq(sysctl_pll_t pll, sysctl_clock_source_t source, uint32_t freq)
+{
+    uint32_t freq_in = 0;
+
+    if(pll >= SYSCTL_PLL_MAX)
+        return 0;
+
+    if(source >= SYSCTL_SOURCE_MAX)
+        return 0;
+
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+        case SYSCTL_PLL1:
+            /*
+             * Check input clock source
+             */
+            if(source != SYSCTL_SOURCE_IN0)
+                return 0;
+            freq_in = sysctl_clock_source_get_freq(SYSCTL_SOURCE_IN0);
+            /*
+             * Check input clock freq
+             */
+            if(freq_in == 0)
+                return 0;
+            break;
+
+        case SYSCTL_PLL2:
+            /*
+             * Check input clock source
+             */
+            if(source < sizeof(get_select_pll2))
+                freq_in = sysctl_clock_source_get_freq(source);
+            /*
+             * Check input clock freq
+             */
+            if(freq_in == 0)
+                return 0;
+            break;
+
+        default:
+            return 0;
+    }
+
+    /* variables */
+    int nrx = 1;
+    int no = 2;
+    int nb = 62;
+
+    long long nfx = 62;
+    /*
+     * Begin write PLL registers' value,
+     * Using atomic write method.
+     */
+    sysctl_pll0_t pll0;
+    sysctl_pll1_t pll1;
+    sysctl_pll2_t pll2;
+
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+            /* Read register from bus */
+            pll0 = sysctl->pll0;
+            /* Set register temporary value */
+            pll0.clkr0 = nrx - 1;
+            pll0.clkf0 = nfx - 1;
+            pll0.clkod0 = no - 1;
+            pll0.bwadj0 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll0 = pll0;
+            break;
+
+        case SYSCTL_PLL1:
+            /* Read register from bus */
+            pll1 = sysctl->pll1;
+            /* Set register temporary value */
+            pll1.clkr1 = nrx - 1;
+            pll1.clkf1 = nfx - 1;
+            pll1.clkod1 = no - 1;
+            pll1.bwadj1 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll1 = pll1;
+            break;
+
+        case SYSCTL_PLL2:
+            /* Read register from bus */
+            pll2 = sysctl->pll2;
+            /* Set register temporary value */
+            if(source < sizeof(get_select_pll2))
+                pll2.pll_ckin_sel2 = get_select_pll2[source];
+
+            pll2.clkr2 = nrx - 1;
+            pll2.clkf2 = nfx - 1;
+            pll2.clkod2 = no - 1;
+            pll2.bwadj2 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll2 = pll2;
+            break;
+
+        default:
+            return 0;
+    }
+
+    return sysctl_pll_get_freq(pll);
+}
+
+static int sysctl_pll_is_lock(sysctl_pll_t pll)
+{
+    /*
+     * All bit enable means PLL lock
+     *
+     * struct pll_lock_t
+     * {
+     *         uint8_t overflow : 1;
+     *         uint8_t rfslip : 1;
+     *         uint8_t fbslip : 1;
+     * };
+     *
+     */
+
+    if(pll >= SYSCTL_PLL_MAX)
+        return 0;
+
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+            return sysctl->pll_lock.pll_lock0 == 3;
+
+        case SYSCTL_PLL1:
+            return sysctl->pll_lock.pll_lock1 & 1;
+
+        case SYSCTL_PLL2:
+            return sysctl->pll_lock.pll_lock2 & 1;
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+static int sysctl_pll_clear_slip(sysctl_pll_t pll)
+{
+    if(pll >= SYSCTL_PLL_MAX)
+        return -1;
+
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+            sysctl->pll_lock.pll_slip_clear0 = 1;
+            break;
+
+        case SYSCTL_PLL1:
+            sysctl->pll_lock.pll_slip_clear1 = 1;
+            break;
+
+        case SYSCTL_PLL2:
+            sysctl->pll_lock.pll_slip_clear2 = 1;
+            break;
+
+        default:
+            break;
+    }
+
+    return sysctl_pll_is_lock(pll) ? 0 : -1;
+}
+
+uint32_t sysctl_pll_set_freq(sysctl_pll_t pll, uint32_t pll_freq)
+{
+    if(pll_freq == 0)
+        return 0;
+
+    volatile sysctl_general_pll_t *v_pll_t;
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll0);
+            break;
+        case SYSCTL_PLL1:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll1);
+            break;
+        case SYSCTL_PLL2:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll2);
+            break;
+        default:
+            return 0;
+            break;
+    }
+
+    /* 1. Change CPU CLK to XTAL */
+    if(pll == SYSCTL_PLL0)
+        sysctl_clock_set_clock_select(SYSCTL_CLOCK_SELECT_ACLK, SYSCTL_SOURCE_IN0);
+
+    /* 2. Disable PLL output */
+    v_pll_t->pll_out_en = 0;
+
+    /* 3. Turn off PLL */
+    v_pll_t->pll_pwrd = 0;
+
+    /* 4. Set PLL new value */
+    uint32_t result;
+    if(pll == SYSCTL_PLL2)
+        result = sysctl_pll_source_set_freq(pll, v_pll_t->pll_ckin_sel, pll_freq);
+    else
+        result = sysctl_pll_source_set_freq(pll, SYSCTL_SOURCE_IN0, pll_freq);
+
+    /* 5. Power on PLL */
+    v_pll_t->pll_pwrd = 1;
+    /* wait >100ns */
+    usleep(1);
+
+    /* 6. Reset PLL then Release Reset*/
+    v_pll_t->pll_reset = 0;
+    v_pll_t->pll_reset = 1;
+    /* wait >100ns */
+    usleep(1);
+    v_pll_t->pll_reset = 0;
+
+    /* 7. Get lock status, wait PLL stable */
+    while(sysctl_pll_is_lock(pll) == 0)
+        sysctl_pll_clear_slip(pll);
+
+    /* 8. Enable PLL output */
+    v_pll_t->pll_out_en = 1;
+
+    /* 9. Change CPU CLK to PLL */
+    if(pll == SYSCTL_PLL0)
+    {
+        sysctl_clock_set_clock_select(SYSCTL_CLOCK_SELECT_ACLK, SYSCTL_SOURCE_PLL0);
+        //uart_debug_init(-1);
+    }
+    return result;
+}
+
+int sysctl_pll_enable(sysctl_pll_t pll)
+{
+    /*
+     *       ---+
+     * PWRDN    |
+     *          +-------------------------------------------------------------
+     *          ^
+     *          |
+     *          |
+     *          t1
+     *                 +------------------+
+     * RESET           |                  |
+     *       ----------+                  +-----------------------------------
+     *                 ^                  ^                              ^
+     *                 |<----- t_rst ---->|<---------- t_lock ---------->|
+     *                 |                  |                              |
+     *                 t2                 t3                             t4
+     */
+
+    if(pll >= SYSCTL_PLL_MAX)
+        return -1;
+
+    switch(pll)
+    {
+        case SYSCTL_PLL0:
+            /* Do not bypass PLL */
+            sysctl->pll0.pll_bypass0 = 0;
+            /*
+             * Power on the PLL, negtive from PWRDN
+             * 0 is power off
+             * 1 is power on
+             */
+            sysctl->pll0.pll_pwrd0 = 1;
+            /*
+             * Reset trigger of the PLL, connected RESET
+             * 0 is free
+             * 1 is reset
+             */
+            sysctl->pll0.pll_reset0 = 0;
+            sysctl->pll0.pll_reset0 = 1;
+            asm volatile("nop");
+            asm volatile("nop");
+            sysctl->pll0.pll_reset0 = 0;
+            break;
+
+        case SYSCTL_PLL1:
+            /* Do not bypass PLL */
+            sysctl->pll1.pll_bypass1 = 0;
+            /*
+             * Power on the PLL, negtive from PWRDN
+             * 0 is power off
+             * 1 is power on
+             */
+            sysctl->pll1.pll_pwrd1 = 1;
+            /*
+             * Reset trigger of the PLL, connected RESET
+             * 0 is free
+             * 1 is reset
+             */
+            sysctl->pll1.pll_reset1 = 0;
+            sysctl->pll1.pll_reset1 = 1;
+            asm volatile("nop");
+            asm volatile("nop");
+            sysctl->pll1.pll_reset1 = 0;
+            break;
+
+        case SYSCTL_PLL2:
+            /* Do not bypass PLL */
+            sysctl->pll2.pll_bypass2 = 0;
+            /*
+             * Power on the PLL, negtive from PWRDN
+             * 0 is power off
+             * 1 is power on
+             */
+            sysctl->pll2.pll_pwrd2 = 1;
+            /*
+             * Reset trigger of the PLL, connected RESET
+             * 0 is free
+             * 1 is reset
+             */
+            sysctl->pll2.pll_reset2 = 0;
+            sysctl->pll2.pll_reset2 = 1;
+            asm volatile("nop");
+            asm volatile("nop");
+            sysctl->pll2.pll_reset2 = 0;
+            break;
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+int sysctl_dma_select(sysctl_dma_channel_t channel, sysctl_dma_select_t select)
+{
+    sysctl_dma_sel0_t dma_sel0;
+    sysctl_dma_sel1_t dma_sel1;
+
+    /* Read register from bus */
+    dma_sel0 = sysctl->dma_sel0;
+    dma_sel1 = sysctl->dma_sel1;
+    switch(channel)
+    {
+        case SYSCTL_DMA_CHANNEL_0:
+            dma_sel0.dma_sel0 = select;
+            break;
+
+        case SYSCTL_DMA_CHANNEL_1:
+            dma_sel0.dma_sel1 = select;
+            break;
+
+        case SYSCTL_DMA_CHANNEL_2:
+            dma_sel0.dma_sel2 = select;
+            break;
+
+        case SYSCTL_DMA_CHANNEL_3:
+            dma_sel0.dma_sel3 = select;
+            break;
+
+        case SYSCTL_DMA_CHANNEL_4:
+            dma_sel0.dma_sel4 = select;
+            break;
+
+        case SYSCTL_DMA_CHANNEL_5:
+            dma_sel1.dma_sel5 = select;
+            break;
+
+        default:
+            return -1;
+    }
+
+    /* Write register back to bus */
+    sysctl->dma_sel0 = dma_sel0;
+    sysctl->dma_sel1 = dma_sel1;
+
+    return 0;
+}

@@ -13,4 +13,8 @@
 void *memset(void *__dst,int c,size_t count);
 
 void *memcpy(void *__dest,const void *__src,size_t n);
+
+int strncmp(const char *s1,const char *s2,size_t n);
+
+size_t strlen(const char *s1);
 #endif

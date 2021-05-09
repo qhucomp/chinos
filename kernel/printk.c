@@ -21,14 +21,14 @@ int printk(const char *fmt,...) {
  * 
  * @param[in] radix 转换为radix进制
  */
-static char *itoa(int64_t val, char *buf, unsigned radix)
+static char *itoa(uint64_t val, char *buf, unsigned int radix)
 {
     char   *p;             
     char   *firstdig;      
     char   temp;           
     unsigned   digval;     
     p = buf;
-    if(val < 0)
+    if((val < 0) && (radix == 10))
     {
         *p++ = '-';
         val = -val;

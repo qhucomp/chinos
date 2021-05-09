@@ -144,6 +144,16 @@ fn main() -> ! {
         let clocks = Clocks::new();
         let _uarths_tx = fpioa.io5.into_function(fpioa::UARTHS_TX);
         let _uarths_rx = fpioa.io4.into_function(fpioa::UARTHS_RX);
+        //fpioa.io30.into_function(fpioa::SPI0_D0);
+        //fpioa.io31.into_function(fpioa::SPI0_D1);
+        fpioa.io32.into_function(fpioa::GPIOHS7);
+        fpioa.io24.into_function(fpioa::SPI0_SS3);
+
+        fpioa.io27.into_function(fpioa::SPI0_SCLK);
+        fpioa.io28.into_function(fpioa::SPI0_D0);
+        fpioa.io26.into_function(fpioa::SPI0_D1);
+        fpioa.io29.into_function(fpioa::SPI0_SS0);
+
         // Configure UART
         let serial = p.UARTHS.configure(115_200.bps(), &clocks);
         let (tx, rx) = serial.split();

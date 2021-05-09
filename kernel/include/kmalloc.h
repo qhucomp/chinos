@@ -43,8 +43,14 @@ void free_zone(struct zone *ptr);
  * 
  * @return 返回已经分配好的内存地址
  */
-void *kmalloc(size_t size);
+void *_kmalloc(size_t size);
 
+#define kmalloc(size)                                                           \
+({                                                                              \
+    printk("%s %s %d\n",__FILE__,__func__,__LINE__);                            \
+    void *ptr = _kmalloc(size);                                                 \
+    ptr;                                                                        \
+})
 /**
  * @brief 释放从kmalloc里分配的内存
  */
