@@ -27,8 +27,38 @@ void init_kmalloc(void) {
     printk("kernel heap size:%ld\n",zone_struct.size,zone_struct.ptr);
     printk("kmalloc init.........OK\n");
 }
-
+static void mem_block_merge(void) {
+    //合并内存块，将小内存合并为大内存
+    struct zone *ptr = zone_pointer;
+    for(;ptr != NULL;ptr = ptr->next)
+        if (ptr->flag == FREE)
+            break;
+    
+    for(;ptr!=NULL;ptr=ptr->before)
+    {
+        if((ptr->flag==FREE)&&(ptr->next->flag==FREE)&&(ptr->next!=NULL))
+        {
+            
+            ptr->next->size+=ptr->size;
+            ptr->next->before=ptr->before;
+            ptr=ptr->next;           
+            free_zone(ptr->before->next);
+            ptr->before->next=ptr;
+        }
+        else
+        break;
+    }
+    /*for(;ptr != NULL;ptr = ptr->next) {
+        if ((ptr->flag == FREE) && (ptr->next != NULL) && (ptr->next->flag == FREE)) {
+            ptr->size += ptr->next->size;
+            ptr->next = ptr->next->next;
+            free_zone(ptr->next);
+        } else
+            break;
+    }*/
+}
 struct zone *alloc_zone(void) {
+start:
     for(size_t i = 0;i < bitmap_size;i++) {
         if (~(bitmap[i] & 0xffffffffffffffff)) {
             for(int j = 0;j < 64;j++)
@@ -38,24 +68,12 @@ struct zone *alloc_zone(void) {
                 }
         }
     }
+    mem_block_merge();
+        goto start;
     return NULL;
 }
 
-static void mem_block_merge(void) {
-    //合并内存块，将小内存合并为大内存
-    struct zone *ptr = zone_pointer;
-    for(;ptr != NULL;ptr = ptr->next)
-        if (ptr->flag == FREE)
-            break;
-    for(;ptr != NULL;ptr = ptr->next) {
-        if ((ptr->flag == FREE) && (ptr->next != NULL) && (ptr->next->flag == FREE)) {
-            ptr->size += ptr->next->size;
-            ptr->next = ptr->next->next;
-            free_zone(ptr->next);
-        } else
-            break;
-    }
-}
+
 
 void *_kmalloc(size_t size) {
     int flag = 1;
@@ -71,7 +89,6 @@ start:
                 if ((p - (char *)ptr->ptr) > size)
                     continue;
                 p++;
-                size++;
             }
             struct zone *zone_ptr = alloc_zone();
             if (!zone_ptr)
@@ -85,9 +102,11 @@ start:
             zone_ptr->flag = ALLOC;
             zone_ptr->next = zone_pointer;
             zone_pointer = zone_ptr;
+            zone_ptr->next->before=zone_ptr;//建立双向链表
             printk("%p OK!\n",p);
             return p;
-        } else if ((ptr->flag == FREE) && (ptr->size == size)) {
+        }
+        else if ((ptr->flag == FREE) && (ptr->size == size)) {
             ptr->flag = ALLOC;
             total_size += size;
             return ptr->ptr;
