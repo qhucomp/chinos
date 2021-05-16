@@ -28,7 +28,7 @@ typedef enum
 DSTATUS disk_initialize(uint8_t pdrv);
 DSTATUS disk_status(uint8_t pdrv);
 DRESULT disk_read(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count);
-DRESULT disk_write(uint8_t pdrv, const uint8_t *buff, uint32_t sector, uint32_t count);
+DRESULT disk_write(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count);
 DRESULT disk_ioctl(uint8_t pdrv, uint8_t cmd, void *buff);
 DRESULT disk_init(void);
 /* Disk Status Bits (DSTATUS) */

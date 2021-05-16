@@ -1,7 +1,7 @@
 #ifndef __RISCV_H
 #define __RISCV_H
 #include <stdint.h>
-#define read_csr(reg) ({ unsigned long __tmp; \
+#define read_csr(reg) ({int64_t __tmp; \
   asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
   __tmp; })
 #define clear_csr(reg, bit) ({ unsigned long __tmp; \
@@ -60,10 +60,10 @@
     asm volatile("csrr %0,mstatus"::"r"(a0):"memory");              \
 })
 
-#define MPP_MACHINE     (3 << 11)
-#define MPP_HYPERVISOR  (2 << 11)
-#define MPP_SUPERVISOR  (1 << 11)
-#define MPP_USER        (0)
+#define MPP_MACHINE     (3UL << 11)
+#define MPP_HYPERVISOR  (2UL << 11)
+#define MPP_SUPERVISOR  (1UL << 11)
+#define MPP_USER        (~MPP_MACHINE)
 
 #define CAUSE_USER_ECALL        (0X8)
 #define CAUSE_SUPERVISOR_ECALL  (0x9)

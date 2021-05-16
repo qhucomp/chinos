@@ -539,6 +539,8 @@ uint8_t sd_write_sector(uint8_t *data_buff, uint32_t sector, uint32_t count) {
   sd_end_cmd();
   sd_end_cmd();
   /*!< Returns the reponse */
+
+  printk("call sd_write_sector()");
   return 0;
 }
 

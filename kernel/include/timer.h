@@ -110,9 +110,11 @@ void timer_set_irq(timer_device_number_t timer_number, timer_channel_number_t ch
  */
 void timer_set_enable(timer_device_number_t timer_number, timer_channel_number_t channel, uint32_t enable);
 
+void timer_enable_interrupt(timer_device_number_t timer_number, timer_channel_number_t channel);
+void timer_disable_interrupt(timer_device_number_t timer_number, timer_channel_number_t channel);
 //系统最小调度时间片
 // 1ms
 #define MIN_TIME_STEP   (10000000UL)
 
-#define DEFAULT_TIME_STEP (MIN_TIME_STEP*5000)
+#define DEFAULT_TIME_STEP (MIN_TIME_STEP*6000)
 #endif

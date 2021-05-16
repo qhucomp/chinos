@@ -2,6 +2,7 @@
 #include "include/kmalloc.h"
 #include "include/sysctl.h"
 #include "include/printk.h"
+#include "include/string.h"
 task_struct init_task = INIT_TASK(init_task);
 task_struct *task_list;
 uint64_t pid_bitmap[32];
@@ -78,11 +79,26 @@ static pid_t get_new_pid(void) {
 task_struct *alloc_task(void) {
     pid_t pid = get_new_pid();
     task_struct *task = kmalloc(sizeof(task_struct));
+    if (!task)
+        panic("out of memory!");
     task->pid = pid;
     task->next = task->prev = NULL;
-    task->left_time = 5000;
+    task->left_time = 1000;
     task->create_time = sysctl_get_time_us() / 1000;
+    memset(&task->task_reg,0,sizeof(regs));
     task->epc = 0;
-    task->flag = 0;
+    task->flag = TASK_FLAG_NO_RUN;
+    task->status = TASK_WAIT_CPU;
+    task->fd_bitmap = 1;
+    task->entry = kmalloc(sizeof(dentry_struct *) * (sizeof(uint32_t) - 1));
+    printk("task->entry=%p\n",task->entry);
+    if (!task->entry)
+        panic("out of memory!");
+    memset(task->entry,0,sizeof(dentry_struct *) * (sizeof(uint32_t) - 1));
+    task->work_dir = kmalloc(256);
+    if(!task->work_dir)
+        panic("out of memory!");
+    memset(task->work_dir,0,256);
+    memcpy(task->work_dir,"/",1);
     return task;
 }

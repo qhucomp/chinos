@@ -5,13 +5,13 @@
 #include <sys/types.h>
 #include <stdint.h>
 extern char _heap_start[];
-char *kernel_heap_end = (char *)0x80500000;
+char *kernel_heap_end = (char *)0x80200000;
 struct zone zone_struct = {0,FREE,0};
 struct zone *zone_pointer;
 struct zone *zone_array;
 uint64_t *bitmap;
 size_t bitmap_size;
-
+int total_size;
 void init_kmalloc(void) {
     zone_struct.ptr = (void *)_heap_start;//_heap_start  + 4096*16;
     printk("heap address:%p\n",_heap_start);
@@ -61,22 +61,35 @@ void *_kmalloc(size_t size) {
     int flag = 1;
 start:
     for (struct zone *ptr = zone_pointer;ptr != NULL;ptr = ptr->next) {
+        printk("size:%d ptr->size:%d flag:%d ptr:%p\n",size,ptr->size,ptr->flag,ptr->ptr);
         if ((ptr->flag == FREE) && (ptr->size > size)) {
+            char *p = ptr->ptr;
+
+            // 地址对齐
+            // 存在内存泄漏
+            while((uintptr_t)p % 8 != 0) {
+                if ((p - (char *)ptr->ptr) > size)
+                    continue;
+                p++;
+                size++;
+            }
             struct zone *zone_ptr = alloc_zone();
             if (!zone_ptr)
                 break;
-            char *p = ptr->ptr;
             ptr->ptr = (char *)ptr->ptr + size;
+            printk("after ptr:%p\n",ptr->ptr);
             ptr->size -= size;
-
+            total_size += size;
             zone_ptr->ptr = p;
             zone_ptr->size = size;
             zone_ptr->flag = ALLOC;
             zone_ptr->next = zone_pointer;
             zone_pointer = zone_ptr;
+            printk("%p OK!\n",p);
             return p;
         } else if ((ptr->flag == FREE) && (ptr->size == size)) {
             ptr->flag = ALLOC;
+            total_size += size;
             return ptr->ptr;
         }
     }
@@ -102,6 +115,8 @@ void free_zone(struct zone *ptr) {
 }
 
 void kfree(void *ptr) {
+    if(!ptr)
+        return;
     for (struct zone *p = zone_pointer;p->next != NULL;p = p->next) {
         if (p->ptr == ptr) {
             p->flag = FREE;

@@ -17,4 +17,10 @@ void *memcpy(void *__dest,const void *__src,size_t n);
 int strncmp(const char *s1,const char *s2,size_t n);
 
 size_t strlen(const char *s1);
+
+char *strncat(char *__dst,const char *__src,size_t n);
+
+char *strupr(char *str);
+
+ char *strchr(const char *s, int c);
 #endif

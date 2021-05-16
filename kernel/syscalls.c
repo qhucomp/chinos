@@ -2,31 +2,97 @@
 #include "include/trap.h"
 #include "include/syscalls.h"
 #include "include/uart.h"
+#include "include/printk.h"
+#include "include/task.h"
+#include "include/kmalloc.h"
+#include "include/string.h"
+syscall_func syscalls[300];
 
-char *user_heap_start = (char *)0x80400000;
-char *user_heap_end = (char *)0x80600000;
-
-uintptr_t handle_ecall(uint64_t extension,regs *reg) {
-    switch(extension) {
-        case SYS_write:
-            return sys_write((int)reg->x11,(void *)reg->x12,reg->x13);
-        default:
-            return 0;
-    }
+static int get_new_fd(void) {
+        for(int j = 0;j < 32;j++)
+            if (!(current->fd_bitmap & (1U << j))) {
+                current->fd_bitmap |= 1U << j;
+                return j + 1;
+            }
+    printk("no fd\n");
+    return -1;
 }
-#undef putchar
+
+ssize_t sys_read(int64_t fd,void *buf,size_t count) {
+    ssize_t result = 0;
+    if (current->entry[0])
+        result = vfs_read(current->entry[0],buf,count);
+    return result;
+}
+
+int sys_openat(int64_t dirfd,const char *path,int flags) {
+    int fd = get_new_fd();
+    char *_p;
+    size_t len = strlen(path) + strlen(current->work_dir) + 1;
+    _p = kmalloc(len);
+    if(!_p)
+        panic("out of memory");
+    memset(_p,0,len);
+    strncat(_p,current->work_dir,len);
+    strncat(_p,path,len);
+    dentry_struct *p = vfs_open(_p);
+    current->entry[fd - 2] = p;
+    if(!p)
+        return -1;
+    return fd;
+}
+
 static void putchar(char ch) {
     uart_send(ch);
 }
 
-ssize_t sys_write(int fd,void *buf,size_t count) {
-    if (fd == 1) {
-        for(size_t i = 0;i < count;i++)
-            putchar(((char *)buf)[i]);
+uintptr_t handle_ecall(uint64_t extension,regs *reg) {
+    switch(extension) {
+        case SYS_write:
+            return sys_write(reg->x10,(void *)reg->x11,reg->x12);
+        case SYS_openat:
+            return sys_openat(reg->x10,(void *)reg->x11,reg->x12);
+        case SYS_read:
+            return sys_read(reg->x10,(void *)reg->x11,reg->x12);
+        case SYS_exit:
+            sys_exit(reg->x10);
+        case 10:
+            putchar('s');
+            putchar('y');
+            putchar('s');
+            while(1);
+        default:
+            return 0;
     }
-    return count;
 }
+
+
+
+
+ssize_t sys_write(int fd,void *buf,size_t count) {
+    ssize_t result = 0;
+    if (fd == 1) {
+        for(size_t i = 0;i < count;i++,result++)
+            putchar(((char *)buf)[i]);
+        goto end;
+    }
+    // if (!current->entry[fd])
+    //     result = vfs_read(current->entry[fd],buf,count);
+
+end: ;
+    return result;
+}
+
 
 void *sys_brk(size_t pos) {
     return NULL;
+}
+void sys_exit(int code) {
+    printk("test successfully");
+    while(1);
+}
+void register_syscall(void) {
+    syscalls[SYS_write] = (syscall_func)sys_write;
+    syscalls[SYS_openat] = (syscall_func)sys_openat;
+    syscalls[SYS_read] = (syscall_func)sys_read;
 }

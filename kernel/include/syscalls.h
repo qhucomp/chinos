@@ -33,11 +33,13 @@
 #define SYS_execve          221
 #define SYS_mmap            222
 #define SYS_wait4           260
+#define SYS_start_thread    32
 
+#define AT_FDCWD
 extern char *user_heap_start;
 extern char *user_heap_end;
 
-typedef uintptr_t (*syscall_func)(uintptr_t,uintptr_t,uintptr_t,uintptr_t);
+typedef uintptr_t (*syscall_func)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t);
 extern syscall_func syscalls[300];
 
 /**
@@ -53,4 +55,7 @@ uintptr_t handle_ecall(uintptr_t extension,regs *reg);
 
 ssize_t sys_write(int fd,void *buf,size_t count);
 void *sys_brk(size_t pos);
+int sys_fork(void);
+void sys_exit(int code);
+void register_syscall(void);
 #endif

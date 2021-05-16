@@ -20,39 +20,61 @@
 #include "include/diskio.h"
 #include "include/fat32.h"
 #include "include/encoding.h"
+#include "include/init.h"
+#include "include/string.h"
+#include "include/elf_parse.h"
 extern void _trap_entry(void);
+void _m_mode_start(void) {
+    //printk("m mode\n");
+    asm volatile(
+    ".section .text\n"
+    "1:"
+    "    auipc ra,%pcrel_hi(1f);"
+    "    ld ra,%pcrel_lo(1b)(ra);"
+    "    ret;"
+    "    jr ra;"
+    ".align 3\n"
+    "1:  .dword 0x803000b2"
+    );
+    printk("process failed\n");
+}
 void kernel_init(void) {
-    _write_mtvec((uint64_t)_trap_entry);
+    write_csr(mtvec,_trap_entry);
+    //_write_mtval((uint64_t)_trap_entry);
     // 使用6m以上的内存
     sysctl_pll_set_freq(SYSCTL_PLL1,800000000UL);
     sysctl_pll_enable(SYSCTL_PLL1);
 
     init_kmalloc();
     plic_init();
-    //调度器初始化
-    clear_csr(mie, MIP_MEIP);
-    clear_csr(mstatus, MSTATUS_MIE);
-
-
-    //printk("task task\n");
-    //init_scheduler();
-    //kernel_thread(thread_test1)->sp = 0x80600000;
-    //kernel_thread(thread_test2)->sp = 0x80500000;
-    //创建两个内核线程
-    printk("/******************sdcard test*****************/\n");
     disk_init();
     fat32_init();
-
+    //register_syscall();
     //开启中断
     sysctl_enable_irq();
     last_time_interrupt = sysctl_get_time_us() / 1000;
     printk("init kernel.........OK\n");
     print_logo();
 }
+
 int main(void) {
-    asm volatile("mv sp,%0"::"r"(0x80200000));
+    //asm volatile("mv sp,%0"::"r"(0x80200000));
     kernel_init();
-    ECALL(0,0,0,0);
+    dentry_struct *p = fat32_open("/test");
+    void *user = (char *)(0x80300000);
+    memset(user,0,5120);
+    void *elf = kmalloc(10240);
+    fat32_read(p,elf,10240);
+    copy_section(elf,user,".text");
+
+    for(int i = 0;i < 5120;i++) {
+        printk("%x ",*((char *)user + i));
+    }
+    printk("\n");
+    printk("----START THREAD----\n");
+    init_scheduler();
+    write_csr(mepc,get_symbol_offset(elf,"_start"));
+    asm volatile("mret");
     while (1);
     return 0;
 }

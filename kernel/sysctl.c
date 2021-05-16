@@ -845,7 +845,7 @@ uint32_t sysctl_pll_get_freq(sysctl_pll_t pll)
 
 void sysctl_enable_irq(void)
 {
-    set_csr(mie, MIP_MEIP);
+    set_csr(mie, MIP_MEIP | MIP_MSIP);
     set_csr(mstatus, MSTATUS_MIE);
 }
 /*
@@ -1547,4 +1547,10 @@ int sysctl_dma_select(sysctl_dma_channel_t channel, sysctl_dma_select_t select)
     sysctl->dma_sel1 = dma_sel1;
 
     return 0;
+}
+
+void sysctl_disable_irq(void)
+{
+    clear_csr(mie, MIP_MEIP);
+    clear_csr(mstatus, MSTATUS_MIE);
 }

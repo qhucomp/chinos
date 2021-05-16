@@ -60,6 +60,7 @@ _restore:
     LOAD x7,7
     LOAD x8,8
     LOAD x9,9
+    LOAD x10,10
     LOAD x11,11
     LOAD x12,12
     LOAD x13,13
@@ -81,8 +82,9 @@ _restore:
     LOAD x29,29
     LOAD x30,30
     LOAD x31,31
-    mv x10,sp
+    mv x11,sp
     addi sp,sp,32*REGBYTES
     csrrw sp,mscratch,sp
-    ld  sp, 11*REGBYTES(x10)
+    // 从a1寄存器中恢复进程的栈
+    ld  sp, 12*REGBYTES(x11)
     mret

@@ -2,6 +2,7 @@
 #define __FS_H
 #include <stdint.h>
 #include <stddef.h>
+#include "vfs.h"
 #undef wchar_t
 #define wchar_t uint16_t
 typedef struct __boot_sector {
@@ -106,8 +107,10 @@ typedef struct __mbr {
 } __attribute__((packed)) mbr_struct;
 
 fat32_fs *fat32_init(void);
-size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size);
-size_t fat32_read(fat32_fs *fat32,const char *path,const void *data,size_t size);
+//size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size);
+typedef struct __dentry dentry_struct;
+size_t fat32_read(dentry_struct *p,void *buf,size_t size);
+dentry_struct *fat32_open(const char *path);
 #define FILE_NAME_END (0x40)
 #define NO_CHAR ((wchar_t)0xffff)
 #define FAT_MASK (0xfffffff)
@@ -115,4 +118,7 @@ size_t fat32_read(fat32_fs *fat32,const char *path,const void *data,size_t size)
 #define is_short_entry(e) (!((e)->dir_attr == 0xf || (e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05))
 #define DEFAULT_LOAD_SECTOR 128
 #define MAX_NAME_LEN 256
+#define EMPTY_CLUSNO (0xf0000000)
+#define IS_EMPTY_DIR_ENTRY(e) ((e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05)
+extern fat32_fs *fs;
 #endif

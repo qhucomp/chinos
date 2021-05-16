@@ -3,10 +3,26 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include "vfs.h"
 #include "timer.h"
 #include "trap.h"
 
 #define TASK_DEFAULT_TIME_STEP (10) 
+
+#define TASK_SLEEP 1
+#define TASK_WAIT_CPU 2
+#define TASK_WAIT_IO 3
+#define TASK_RUN 4
+
+
+//用户级进程
+#define TASK_FLAG_USER_THREAD (1U << 1)
+
+//进程没有运行过
+#define TASK_FLAG_NO_RUN (1U << 2)
+
+//内核线程
+#define TASK_FLAG_KERNEL_THREAD (1U << 3)
 
 typedef struct __task_struct {
     pid_t pid;
@@ -16,8 +32,12 @@ typedef struct __task_struct {
     unsigned long sp;
     regs task_reg;
     int flag;
+    int status;
     struct __task_struct *next;
     struct __task_struct *prev;
+    uint32_t fd_bitmap;
+    dentry_struct **entry;
+    char *work_dir;
 } task_struct;
 
 //idle进程的结构
@@ -36,7 +56,8 @@ extern task_struct *task_list;
     .sp = 0,                                \
     .flag = 0,                              \
     .next = &init_task,                     \
-    .prev = &init_task                      \
+    .prev = &init_task,                     \
+    .status = TASK_WAIT_CPU                 \
 }
 
 /**

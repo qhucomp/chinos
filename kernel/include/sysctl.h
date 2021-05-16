@@ -998,4 +998,9 @@ uint32_t sysctl_pll_set_freq(sysctl_pll_t pll, uint32_t pll_freq);
  *     - Other  Fail
  */
 int sysctl_pll_enable(sysctl_pll_t pll);
+
+/**
+ * @brief       Disable interrupt
+ */
+void sysctl_disable_irq(void);
 #endif

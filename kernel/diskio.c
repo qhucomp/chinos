@@ -45,13 +45,14 @@ DRESULT disk_read(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
         printk("Error\n");
         return RES_ERROR;
     }
-    int repeat_count = 0xffff;
+    int repeat_count;
+    printk("read sector:%d\n",sector);
     for(int c = 0;c < count;c++) {
         // if (rw_count >= 5000) {
         //     disk_init();
         //     rw_count = 0;
         // }
-        repeat_count = 0xffff;
+        repeat_count = 0xff;
 start:
         if(sd_read_sector(buff + c*512,sector + c,1)) {
             disk_init();
@@ -72,21 +73,29 @@ start:
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-// DRESULT disk_write(uint8_t pdrv, const uint8_t *buff, uint32_t sector, uint32_t count)
+// DRESULT disk_write(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
 // {
-//     uint32_t i,j;
-//     j = 0;
-//     i = count / MAX_SECTOR;
-//     if (i == 0) {
-//         if (sd_write_sector((uint8_t *)buff,sector,count) == 0)
-//             return RES_OK;
-//     } else
-//         j = count - i*MAX_SECTOR;
-
-//     for(int c = 0;c < i;c++)
-//         if(sd_write_sector((uint8_t *)buff + c*MAX_SECTOR*512,sector + c*MAX_SECTOR,MAX_SECTOR))
+//     if (buff == NULL) {
+//         printk("Error\n");
+//         return RES_ERROR;
+//     }
+//     int repeat_count;
+//     for(int c = 0;c < count;c++) {
+//         repeat_count = 0xff;
+//         printk("write\n");
+// disk_repeat:
+//         if(sd_write_sector(buff + c*512,sector + c,1)) {
+//             disk_init();
+//             if (repeat_count) {
+//                 repeat_count -= 1;
+//                 goto disk_repeat;
+//             }
+//             printk("write error\n");
 //             return RES_ERROR;
-//     return sd_write_sector((uint8_t *)buff + i*MAX_SECTOR*512,sector + i*MAX_SECTOR,j) ? RES_ERROR : RES_OK;
+//         }
+//         rw_count++;
+//     }
+//     return RES_OK;
 // }
 
 /*-----------------------------------------------------------------------*/
@@ -125,7 +134,6 @@ start:
 // }
 
 DRESULT disk_init(void) {
-    //printk("/******************sdcard test*****************/\n");
     uint8_t status = sd_init();
     if (status != 0) {
         printk("sd init %d",status);
