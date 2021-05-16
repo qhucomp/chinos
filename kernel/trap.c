@@ -9,6 +9,7 @@
 #include "include/plic.h"
 #include "include/thread_test.h"
 #include "include/sysctl.h"
+#define CAUSE_ILLEGAL_INSTRUCTION 0x2
 void _start_trap(regs *reg) {
     int64_t mcause = read_csr(mcause);
     printk("trap %p pid=%d\n",mcause,current->pid);
@@ -32,10 +33,13 @@ void _start_trap(regs *reg) {
                 reg->x10 = handle_ecall(reg->x17,reg);
                 write_csr(mepc,current->epc + 4);
                 break;
+            // case CAUSE_ILLEGAL_INSTRUCTION:
+            //     printk("mepc:%p\n",read_csr(mepc));
+            //     printk("instruction:%p\n",*((char *)read_csr(mepc)));
+            //     write_csr(mepc,0x80300000);
+            //     break;
             default:
-                printk("mepc:%p\n",read_csr(mepc));
-                printk("instruction:%p\n",*((char *)read_csr(mepc)));
-                write_csr(mepc,0x803000b2);
+                write_csr(mepc,0x80300000);
                 break;
         }
     } else {

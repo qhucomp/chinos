@@ -196,15 +196,16 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
             }
         }
     }
-    
+    printk("read root\n");
     // 读取根目录项
     root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count);
+    printk("root_buf:%p",root_buf);
     if (root_buf == NULL)
         panic("out of memory!");
     for(uint32_t count = 0;count < dentry->sector_count;count++)
         if (disk_read(0,(uint8_t *)root_buf + 512*fs->boot.bpb_sec_per_clus*count,dentry->sectorno_list[count],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             panic("read disk failed");
-
+    printk("wtf??");
     size_t name_len = strlen(name);
     char name_buffer[12];
     memset(name_buffer,0x20,11);

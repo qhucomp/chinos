@@ -27,8 +27,11 @@ kernel/diskio.o \
 kernel/fat32.o \
 kernel/vfs.o \
 kernel/sleep.o \
-kernel/dmac.o 
-
+kernel/dmac.o \
+kernel/user.o \
+kernel/shell.o \
+kernel/init.o \
+kernel/elf_parse.o
 ifeq ($(OS),Windows_NT)
 	r := $(shell cd bootloader/k210 && sh just.sh)
 	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)
@@ -41,7 +44,7 @@ prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
 OBJCOPY := $(prefix)objcopy
-CFLAGS := -mcmodel=medany -Wall -Werror -O -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
+CFLAGS := -mcmodel=medany -Wall -Werror -O0 -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)

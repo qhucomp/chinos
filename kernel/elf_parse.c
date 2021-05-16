@@ -6,6 +6,7 @@
 
 uint64_t copy_section(const char *pbuff,char *buf,const char *section_name)
 {
+    (void)buf;
     //60 偏移位置得到节区数量
     int nNumSec = *(Elf64_Half*)(pbuff + 60);
     //get shstrndex
@@ -18,10 +19,11 @@ uint64_t copy_section(const char *pbuff,char *buf,const char *section_name)
     int64_t section_name_len = strlen(section_name);
     uint64_t section_size = 0;
     for(int i = 1;i < nNumSec;i++) {
-        char *section_name =  (char *)(psecheader[i].sh_name + pshstrbuff);
-        if (!strncmp(section_name,section_name,section_name_len))  {
+        char *section =  (char *)(psecheader[i].sh_name + pshstrbuff);
+        if (!strncmp(section,section_name,section_name_len))  {
+            char *b = (char *)psecheader[i].sh_addr;
             section_size = psecheader[i].sh_size;
-            memcpy(buf,pbuff + psecheader[i].sh_offset,psecheader[i].sh_size);
+            memcpy(b,pbuff + psecheader[i].sh_offset,psecheader[i].sh_size);
             break;
         }
     }

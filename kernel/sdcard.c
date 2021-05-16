@@ -435,7 +435,7 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count) {
   while (count) {
     if (sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ) break;
     /*!< Read the SD block data : read NumByteToRead data */
-    sd_read_data(data_buff, 512);
+    sd_read_data_dma(data_buff);
     /*!< Get CRC bytes (not really needed by us, but required by SD) */
     sd_read_data(frame, 2);
     data_buff += 512;
@@ -526,7 +526,7 @@ uint8_t sd_write_sector(uint8_t *data_buff, uint32_t sector, uint32_t count) {
     /*!< Send the data token to signify the start of the data */
     sd_write_data(frame, 2);
     /*!< Write the block data to SD : write count data by block */
-    sd_write_data(data_buff, 512);
+    sd_write_data_dma(data_buff);
     /*!< Put CRC bytes (not really needed by us, but required by SD) */
     sd_write_data(frame, 2);
     data_buff += 512;
