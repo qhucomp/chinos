@@ -27,8 +27,43 @@ void init_kmalloc(void) {
     printk("kernel heap size:%ld\n",zone_struct.size,zone_struct.ptr);
     printk("kmalloc init.........OK\n");
 }
-
+static void mem_block_merge(void) {
+    //合并内存块，将小内存合并为大内存
+    struct zone *ptr = zone_pointer;
+    for(;ptr != NULL;ptr = ptr->next)
+        if (ptr->flag == FREE)
+            break;
+    
+    for(;ptr!=NULL;ptr=ptr->next)
+    {
+        if((ptr->flag==FREE)&&(ptr->next->flag==FREE)&&(ptr->next!=NULL))
+        {
+            
+            ptr->next->size+=ptr->size;
+            ptr->next->before=ptr->before;
+            struct zone *tem=ptr;
+            ptr=ptr->next;       
+            ptr->before->next=ptr;    
+            free_zone(tem);
+           // ptr->before->next=ptr;
+        }
+        else
+            break;
+    }
+    /*for(;ptr != NULL;ptr = ptr->next) {
+        if ((ptr->flag == FREE) && (ptr->next != NULL) && (ptr->next->flag == FREE)) {
+            ptr->size += ptr->next->size;
+           // struct zone *tem=ptr-
+            
+            
+            ptr->next = ptr->next->next;
+            free_zone(ptr->next);
+        } else
+            break;
+    }*/
+}
 struct zone *alloc_zone(void) {
+start:
     for(size_t i = 0;i < bitmap_size;i++) {
         if (~(bitmap[i] & 0xffffffffffffffff)) {
             for(int j = 0;j < 64;j++)
@@ -38,24 +73,12 @@ struct zone *alloc_zone(void) {
                 }
         }
     }
+    mem_block_merge();
+        goto start;
     return NULL;
 }
 
-static void mem_block_merge(void) {
-    //合并内存块，将小内存合并为大内存
-    struct zone *ptr = zone_pointer;
-    for(;ptr != NULL;ptr = ptr->next)
-        if (ptr->flag == FREE)
-            break;
-    for(;ptr != NULL;ptr = ptr->next) {
-        if ((ptr->flag == FREE) && (ptr->next != NULL) && (ptr->next->flag == FREE)) {
-            ptr->size += ptr->next->size;
-            ptr->next = ptr->next->next;
-            free_zone(ptr->next);
-        } else
-            break;
-    }
-}
+
 
 void *_kmalloc(size_t size) {
     int flag = 1;
@@ -69,9 +92,8 @@ start:
             // 存在内存泄漏
             while((uintptr_t)p % 8 != 0) {
                 if ((p - (char *)ptr->ptr) > size)
-                    continue;
+                    goto loop_end;
                 p++;
-                size++;
             }
             struct zone *zone_ptr = alloc_zone();
             if (!zone_ptr)
@@ -84,14 +106,18 @@ start:
             zone_ptr->size = size;
             zone_ptr->flag = ALLOC;
             zone_ptr->next = zone_pointer;
+            //zone_ptr->next=ptr;
             zone_pointer = zone_ptr;
-            printk("%p OK!\n",p);
+            zone_ptr->next->before=zone_ptr;//建立双向链表
+            printk("%p OK!\n",zone_ptr);
             return p;
-        } else if ((ptr->flag == FREE) && (ptr->size == size)) {
+        }
+        else if ((ptr->flag == FREE) && (ptr->size == size)) {
             ptr->flag = ALLOC;
             total_size += size;
             return ptr->ptr;
         }
+loop_end: ;
     }
 
     if (flag) {

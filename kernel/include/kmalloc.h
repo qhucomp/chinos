@@ -10,6 +10,7 @@ struct zone {
     size_t size;
     int flag;
     struct zone *next;
+    struct zone *before;
 };
 
 //内存块已经分配
