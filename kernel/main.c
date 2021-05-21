@@ -34,7 +34,7 @@ void _m_mode_start(void) {
     "    ret;"
     "    jr ra;"
     ".align 3\n"
-    "1:  .dword 0x80300000"
+    "1:  .dword 0x80301000"
     );
     printk("process failed\n");
 }
@@ -60,9 +60,7 @@ void kernel_init(void) {
 int main(void) {
     //asm volatile("mv sp,%0"::"r"(0x80200000));
     kernel_init();
-    printk("open start\n");
     dentry_struct *p = fat32_open("/read");
-    printk("open OK\n");
     void *user = (char *)(0x80300000);
     memset(user,0,5120);
     void *elf = kmalloc(128*1024);
@@ -72,12 +70,6 @@ int main(void) {
     copy_section(elf,user,".rodata");
     copy_section(elf,user,".data");
     copy_section(elf,user,".srodata"); 
-
-    for(int i = 0;i < 5120;i++) {
-        printk("%x ",*((char *)user + i));
-    }
-    printk("\n");
-    printk("----START THREAD----\n");
     init_scheduler();
     write_csr(mepc,_m_mode_start);
     asm volatile("mret");

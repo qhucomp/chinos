@@ -6,6 +6,7 @@
 #include "include/task.h"
 #include "include/kmalloc.h"
 #include "include/string.h"
+
 syscall_func syscalls[300];
 
 static int get_new_fd(void) {
@@ -14,14 +15,14 @@ static int get_new_fd(void) {
                 current->fd_bitmap |= 1U << j;
                 return j + 1;
             }
-    printk("no fd\n");
     return -1;
 }
 
 ssize_t sys_read(int64_t fd,void *buf,size_t count) {
     ssize_t result = 0;
-    if (current->entry[0])
-        result = vfs_read(current->entry[0],buf,count);
+    if (current->entry[fd - 2]) {
+        result = vfs_read(current->entry[fd - 2],buf,count);
+    }
     return result;
 }
 
@@ -35,6 +36,7 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
     memset(_p,0,len);
     strncat(_p,current->work_dir,len);
     strncat(_p,path,len);
+
     dentry_struct *p = vfs_open(_p);
     current->entry[fd - 2] = p;
     if(!p)
@@ -54,13 +56,12 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_openat(reg->x10,(void *)reg->x11,reg->x12);
         case SYS_read:
             return sys_read(reg->x10,(void *)reg->x11,reg->x12);
+        case SYS_close:
+            return 0;
         case SYS_exit:
             sys_exit(reg->x10);
-        case 10:
-            putchar('s');
-            putchar('y');
-            putchar('s');
             while(1);
+            return 0;
         default:
             return 0;
     }
@@ -76,21 +77,21 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
             putchar(((char *)buf)[i]);
         goto end;
     }
-    // if (!current->entry[fd])
-    //     result = vfs_read(current->entry[fd],buf,count);
-
 end: ;
     return result;
 }
 
+uintptr_t sys_brk(size_t pos) {
+    current->brk_base += pos;
+    return current->brk_base;
+}
 
-void *sys_brk(size_t pos) {
-    return NULL;
-}
 void sys_exit(int code) {
-    printk("test successfully");
-    while(1);
+    delete_task(current);
+    current = current->parent;
+    return;
 }
+
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;

@@ -38,6 +38,13 @@ typedef struct __task_struct {
     uint32_t fd_bitmap;
     dentry_struct **entry;
     char *work_dir;
+
+    struct __task_struct *parent;
+    struct __task_struct **chilren;
+    uint32_t chilren_len;
+    uint32_t chilren_count;
+    uint8_t exit_code;
+    uint64_t brk_base;
 } task_struct;
 
 //idle进程的结构
@@ -72,14 +79,16 @@ void add_task(task_struct *task);
  * 
  * @param[in] task 被删除的进程
  */
-void delte_task(task_struct *task);
+void delete_task(task_struct *task);
 
 /**
  * @brief 分配一个task_struct结构
  * 
+ * @param[in] parent 父进程
+ * 
  * @return 返回一个task_struct指针
  */
-task_struct *alloc_task(void);
+task_struct *alloc_task(task_struct *parent);
 
 //指向当前的进程
 extern task_struct *current;

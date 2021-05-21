@@ -2,6 +2,7 @@
 #define __KMALLOC_H
 #include <stddef.h>
 #include <stdint.h>
+#include "debug.h"
 /**
  * @brief 管理kmalloc()行为的结构
  */
@@ -45,13 +46,16 @@ void free_zone(struct zone *ptr);
  * @return 返回已经分配好的内存地址
  */
 void *_kmalloc(size_t size);
-
+#ifdef DEBUG
 #define kmalloc(size)                                                           \
 ({                                                                              \
     printk("%s %s %d\n",__FILE__,__func__,__LINE__);                            \
     void *ptr = _kmalloc(size);                                                 \
     ptr;                                                                        \
 })
+#else
+    #define kmalloc(size) _kmalloc(size)
+#endif
 /**
  * @brief 释放从kmalloc里分配的内存
  */

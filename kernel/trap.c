@@ -12,7 +12,7 @@
 #define CAUSE_ILLEGAL_INSTRUCTION 0x2
 void _start_trap(regs *reg) {
     int64_t mcause = read_csr(mcause);
-    printk("trap %p pid=%d\n",mcause,current->pid);
+    //printk("trap %p pid=%d\n",mcause,current->pid);
     if (mcause >= 0) {
         switch(mcause) {
             case CAUSE_USER_ECALL:
@@ -38,32 +38,36 @@ void _start_trap(regs *reg) {
             //     printk("instruction:%p\n",*((char *)read_csr(mepc)));
             //     write_csr(mepc,0x80300000);
             //     break;
-            default:
-                write_csr(mepc,0x80300000);
+            case CAUSE_ILLEGAL_INSTRUCTION:
+                write_csr(mepc,0x80300000 + 0x1000);
                 break;
+            default:
+                write_csr(mepc,0x80300000 + 0x1000);
+                break;
+                panic("Exception!");
         }
     } else {
         //在切换进程前保存pc和寄存器
-        // current->epc = read_csr(mepc);
-        // current->sp =  read_csr(mscratch);
-        // current->task_reg = *reg;
-        // handle_irq_m_ext();
+        current->epc = read_csr(mepc);
+        current->sp =  read_csr(mscratch);
+        current->task_reg = *reg;
+        handle_irq_m_ext();
 
-        // //如果是第一次运行则不需要恢复寄存器
-        // if (!(current->flag & TASK_FLAG_NO_RUN)){
-        //     current->task_reg.x2 = reg->x2;
-        //     *reg = current->task_reg;
-        // }
+        //如果是第一次运行则不需要恢复寄存器
+        if (!(current->flag & TASK_FLAG_NO_RUN)){
+            current->task_reg.x2 = reg->x2;
+            *reg = current->task_reg;
+        }
 
-        // if (current->flag & TASK_FLAG_NO_RUN)
-        //     current->flag &= ~TASK_FLAG_NO_RUN;
+        if (current->flag & TASK_FLAG_NO_RUN)
+            current->flag &= ~TASK_FLAG_NO_RUN;
         
-        // printk("switch epc:%p\n",current->epc);
-        // write_csr(mepc,current->epc);
-        printk("mepc=%p\n",read_csr(mepc));
-        write_csr(mepc,read_csr(mepc));
+        printk("switch epc:%p\n",current->epc);
+        write_csr(mepc,current->epc);
+        //printk("mepc=%p\n",read_csr(mepc));
+        //write_csr(mepc,read_csr(mepc));
         set_mpp(MPP_MACHINE);
-        // reg->x12 = current->sp;
+        reg->x12 = current->sp;
         return;
     }
     reg->x12 = current->sp;

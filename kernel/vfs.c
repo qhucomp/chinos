@@ -19,7 +19,7 @@ dentry_struct *create_dentry(void) {
 }
 
 static void check_sectorno_list(dentry_struct *dentry) {
-    printk("dentry->sector_count=%d dentry->sectorno_list_len=%d\n",dentry->sector_count,dentry->sectorno_list_len);
+    //printk("dentry->sector_count=%d dentry->sectorno_list_len=%d\n",dentry->sector_count,dentry->sectorno_list_len);
     if (!(dentry->sector_count >= dentry->sectorno_list_len))
         return;
     uint32_t *temp = kmalloc(sizeof(uint32_t) * (dentry->sectorno_list_len + DEFAULT_SECTOR_LIST_SIZE));

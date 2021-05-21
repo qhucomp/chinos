@@ -52,5 +52,7 @@ char *strupr(char *str){
  char *strchr(const char *s, int c) {
      size_t i;
      for(i = 0;s[i] != '\0' && s[i] != c;i++);
+     if (s[i] != c)
+        return NULL;
      return (char *)s + i;
  }

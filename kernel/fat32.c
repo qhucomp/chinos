@@ -10,42 +10,36 @@
 fat32_fs *fs;
 size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
     size_t result = 0;
-    size_t s = p->sector_count;
-    // if (size % 2 == 0)
-    //     s++;
+    size_t s = size / 512;
+    if (size % (512 * fs->boot.bpb_sec_per_clus) != 0)
+        s++;
+    if (p->sector_count * 512 < size)
+        s = p->sector_count;
+
     void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
     if (!buffer)
         panic("out of memory!");
     memset(buffer,0,512*s*fs->boot.bpb_sec_per_clus);
-    printk("read sector:%d %d buffer:%p clus:%d\n",p->sector_count,s,buf,fs->boot.bpb_sec_per_clus);
-    printk("size=%d\n",size);
     for(size_t i = 0;i < s;i++) {
 
-        if (result >= size) {
-            printk("result break;\n");
+        if (result >= size)
             break;
-        }
-        if (disk_read(0,buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) {
-            printk("disk break;");
+        if (disk_read(0,buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             break;
-        }
         result += 512;
     }
-    printk("result:%d\n",result);
     if (result > size)
         result = size;
-    printk("result:%d\n",result);
-    if (result > p->file_size)
+    if (result > p->file_size && p->file_size != 0)
         result = p->file_size;
     memcpy(buf,buffer,result);
-    printk("result:%d\n",result);
-    printk("exit read fat32\n");
     // if (result > size) {
     //     memcpy(buf,buffer,size);
     //     result = size;
     // } else
     //     memcpy(buf,buffer,result);
     // kfree(buffer);
+    kfree(buffer);
     return result;
 }
 
@@ -102,15 +96,7 @@ fat32_fs *fat32_init(void) {
         panic("read disk error");
     if(disk_read(0,(uint8_t *)fs->fat1,mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt,count) == RES_ERROR)
         panic("read disk error");
-    
-    // dentry_struct *p = fat32_open("/read.bin");
-    // char *buf = kmalloc(512*64);
-    // uint32_t size = fat32_read(p,buf,512*64);
-    // printk("size=%d\n",size);
-    dentry_struct *p = fat32_open("/test");
-    char buf[512];
-    fat32_read(p,buf,512);
-    printk("buf:%s\n",buf);
+
     printk("fat LBA:%d,fat sector count:%d,data LBA:%d\n",fs->start_fat_sector,fs->count,fs->data_sector);
     printk("num fats:%d,fatsz32:%d\n",(uint32_t)fs->boot.bpb_num_fats,fs->boot.bpb_fatsz32);
     printk("FAT32 init..........OK\n");
@@ -136,6 +122,28 @@ uint8_t calc_checksum(const char *name) {
         checksum = ((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + name[i];
     return checksum;
 }
+
+char *get_short_name(const char *name,char *buf) {
+    //char name_buffer[12];
+    memset(buf,0x20,11);
+    size_t name_len = strlen(name);
+    buf[11] = 0;
+
+    char *c = strchr(name,'.');
+    int prefix_len = c - name;
+    if (c == NULL)
+        prefix_len = name_len;
+    if (prefix_len < 8) {
+        memcpy(buf,name,prefix_len);
+        int size = name_len - prefix_len;
+        if (size > 3)
+            size = 3;
+        memcpy(buf + 8,c + 1,size);
+        strupr(buf);
+    }
+    return buf;
+}
+
 //需要优化
 dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     dentry_struct *dentry_p = NULL;
@@ -196,31 +204,16 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
             }
         }
     }
-    printk("read root\n");
     // 读取根目录项
     root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count);
-    printk("root_buf:%p",root_buf);
     if (root_buf == NULL)
         panic("out of memory!");
     for(uint32_t count = 0;count < dentry->sector_count;count++)
         if (disk_read(0,(uint8_t *)root_buf + 512*fs->boot.bpb_sec_per_clus*count,dentry->sectorno_list[count],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             panic("read disk failed");
-    printk("wtf??");
+    char short_name_buffer[12];
+    get_short_name(name,short_name_buffer);
     size_t name_len = strlen(name);
-    char name_buffer[12];
-    memset(name_buffer,0x20,11);
-    name_buffer[11] = 0;
-    int pos = strchr(name,'.') - name;
-    if (pos <= 8) {
-        memcpy(name_buffer,name,pos);
-        int size = name_len - pos;
-        if (size > 3)
-            size = 3;
-        //if (name_len > 8)
-        memcpy(name_buffer + 8,name + pos + 1,size);
-        strupr(name_buffer);
-    }
-    printk("short name:%s\n",name_buffer);
     char *dname;
     char *buffer;
     int max_len = 0;
@@ -228,13 +221,14 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     for(uint32_t count = 0;count < fs->boot.bpb_sec_per_clus*16*dentry->sector_count;count++) {
         entry = (void *)(root_buf +count*32);
         if (is_short_entry(entry)) {
+
             if (name_len > 12) {
                 dname = get_entry_name((void *)(root_buf + count*32));
                 buffer = (char *)name;
                 max_len = MAX_NAME_LEN;
             } else {
                 dname = entry->dir_name;
-                buffer = name_buffer;
+                buffer = short_name_buffer;
                 max_len = 11;
             }
             if (!strncmp(dname,buffer,max_len)) {
@@ -304,6 +298,8 @@ dentry_struct *fat32_open(const char *path) {
     i++;
     while(1) {
         for(int index = 0;path[i] != '/';i++,index++) {
+            if (path[i] == '.' && path[i+1] == '/')
+                continue;
             name[index] = path[i];
             if (path[i] == '\0') {
                 flag = 1;
@@ -311,7 +307,6 @@ dentry_struct *fat32_open(const char *path) {
             }
         }
         for(;path[i] == '/' && path[i] != '\0';i++);
-
         if (path[i] == '\0')
             flag = 1;
         dentry_struct *_entry = fat32_lookup(entry,name);
@@ -320,6 +315,11 @@ dentry_struct *fat32_open(const char *path) {
         if(entry == NULL || flag)
             break;
     }
+    uint8_t buf[512];
+    // //预读
+    for(i = 0;i < entry->sector_count;i++)
+        if (disk_read(0,buf,entry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) 
+            break;
     return entry;
 }
 

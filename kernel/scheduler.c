@@ -11,7 +11,8 @@
 #include "include/kernel_thread.h"
 #include "include/user.h"
 #include "include/shell.h"
-
+#include "include/string.h"
+#include "include/kmalloc.h"
 uint64_t last_time_interrupt;
 void init_scheduler(void) {
     current = &init_task;
@@ -19,6 +20,9 @@ void init_scheduler(void) {
     current->create_time = sysctl_get_time_us() / 1000;
     current->left_time = 1000;
     current->pid = 0;
+    current->fd_bitmap = 1;
+    current->entry = kmalloc(sizeof(dentry_struct *) * 64);
+    memset(current->entry,0,sizeof(dentry_struct *) * 64);
     pid_bitmap[0] = 1;
     task_list = current;
     task_list->next = task_list->prev = task_list;

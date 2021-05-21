@@ -84,7 +84,7 @@ void *_kmalloc(size_t size) {
     int flag = 1;
 start:
     for (struct zone *ptr = zone_pointer;ptr != NULL;ptr = ptr->next) {
-        printk("size:%d ptr->size:%d flag:%d ptr:%p\n",size,ptr->size,ptr->flag,ptr->ptr);
+        //printk("size:%d ptr->size:%d flag:%d ptr:%p\n",size,ptr->size,ptr->flag,ptr->ptr);
         if ((ptr->flag == FREE) && (ptr->size > size)) {
             char *p = ptr->ptr;
 
@@ -99,7 +99,7 @@ start:
             if (!zone_ptr)
                 break;
             ptr->ptr = (char *)ptr->ptr + size;
-            printk("after ptr:%p\n",ptr->ptr);
+            //printk("after ptr:%p\n",ptr->ptr);
             ptr->size -= size;
             total_size += size;
             zone_ptr->ptr = p;
@@ -109,7 +109,7 @@ start:
             //zone_ptr->next=ptr;
             zone_pointer = zone_ptr;
             zone_ptr->next->before=zone_ptr;//建立双向链表
-            printk("%p OK!\n",zone_ptr);
+            //printk("%p OK!\n",zone_ptr);
             return p;
         }
         else if ((ptr->flag == FREE) && (ptr->size == size)) {

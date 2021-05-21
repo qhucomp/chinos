@@ -54,7 +54,7 @@ extern syscall_func syscalls[300];
 uintptr_t handle_ecall(uintptr_t extension,regs *reg);
 
 ssize_t sys_write(int fd,void *buf,size_t count);
-void *sys_brk(size_t pos);
+uintptr_t sys_brk(size_t pos);
 int sys_fork(void);
 void sys_exit(int code);
 void register_syscall(void);
