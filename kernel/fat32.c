@@ -316,7 +316,8 @@ dentry_struct *fat32_open(const char *path) {
             break;
     }
     uint8_t buf[512];
-    // //预读
+    //预读
+
     for(i = 0;i < entry->sector_count;i++)
         if (disk_read(0,buf,entry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) 
             break;

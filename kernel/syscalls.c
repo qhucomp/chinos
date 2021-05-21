@@ -36,7 +36,6 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
     memset(_p,0,len);
     strncat(_p,current->work_dir,len);
     strncat(_p,path,len);
-
     dentry_struct *p = vfs_open(_p);
     current->entry[fd - 2] = p;
     if(!p)

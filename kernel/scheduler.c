@@ -26,7 +26,12 @@ void init_scheduler(void) {
     pid_bitmap[0] = 1;
     task_list = current;
     task_list->next = task_list->prev = task_list;
-    kernel_thread(user_shell);
+    current->work_dir = kmalloc(256);
+    if(!current->work_dir)
+        panic("out of memory!");
+    memset(current->work_dir,0,256);
+    memcpy(current->work_dir,"/riscv64/",8);
+    //kernel_thread(user_shell);
     //初始化时钟中断
     timer_init(TIMER_DEVICE_0);
     timer_set_interval(TIMER_DEVICE_0,TIMER_CHANNEL_0,DEFAULT_TIME_STEP);

@@ -27,6 +27,7 @@ void _start_trap(regs *reg) {
                     set_mpp(MPP_MACHINE);
                     return;
                 }
+                //printk("syscalls %d\n",reg->x17);
                 current->epc = read_csr(mepc);
                 current->sp =  read_csr(mscratch);
                 current->task_reg = *reg;

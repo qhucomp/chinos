@@ -120,7 +120,7 @@ task_struct *alloc_task(task_struct *parent) {
     if (parent != NULL)
         memcpy(task->work_dir,parent->work_dir,strlen(parent->work_dir));
     else
-        memcpy(task->work_dir,"/",1);
+        memcpy(task->work_dir,"/riscv64/",8);
     task->parent = parent;
     task->chilren = kmalloc(sizeof(task_struct *) * 8);
     if(!task->chilren)

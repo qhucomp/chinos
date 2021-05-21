@@ -60,7 +60,7 @@ void kernel_init(void) {
 int main(void) {
     //asm volatile("mv sp,%0"::"r"(0x80200000));
     kernel_init();
-    dentry_struct *p = fat32_open("/read");
+    dentry_struct *p = fat32_open("/riscv64/read");
     void *user = (char *)(0x80300000);
     memset(user,0,5120);
     void *elf = kmalloc(128*1024);
