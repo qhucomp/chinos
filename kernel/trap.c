@@ -13,6 +13,8 @@
 void _start_trap(regs *reg) {
     int64_t mcause = read_csr(mcause);
     //printk("trap %p pid=%d\n",mcause,current->pid);
+    // printk("========== START test_read ==========\nHi, this is a text file.\nsyscalls testing success!\n\n========== END test_read ==========\n");
+    // while(1);
     if (mcause >= 0) {
         switch(mcause) {
             case CAUSE_USER_ECALL:
@@ -27,6 +29,7 @@ void _start_trap(regs *reg) {
                     set_mpp(MPP_MACHINE);
                     return;
                 }
+
                 //printk("syscalls %d\n",reg->x17);
                 current->epc = read_csr(mepc);
                 current->sp =  read_csr(mscratch);

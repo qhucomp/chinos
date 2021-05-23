@@ -87,7 +87,6 @@ start:
         //printk("size:%d ptr->size:%d flag:%d ptr:%p\n",size,ptr->size,ptr->flag,ptr->ptr);
         if ((ptr->flag == FREE) && (ptr->size > size)) {
             char *p = ptr->ptr;
-
             // 地址对齐
             // 存在内存泄漏
             while((uintptr_t)p % 8 != 0) {

@@ -15,22 +15,22 @@
 #include "include/kmalloc.h"
 uint64_t last_time_interrupt;
 void init_scheduler(void) {
-    current = &init_task;
+    current = &idle_task;
     current->epc = (uintptr_t)idle;
     current->create_time = sysctl_get_time_us() / 1000;
     current->left_time = 1000;
     current->pid = 0;
-    current->fd_bitmap = 1;
-    current->entry = kmalloc(sizeof(dentry_struct *) * 64);
-    memset(current->entry,0,sizeof(dentry_struct *) * 64);
+    // current->fd_bitmap = 1;
+    // current->entry = kmalloc(sizeof(dentry_struct *) * 64);
+    // memset(current->entry,0,sizeof(dentry_struct *) * 64);
     pid_bitmap[0] = 1;
     task_list = current;
     task_list->next = task_list->prev = task_list;
-    current->work_dir = kmalloc(256);
-    if(!current->work_dir)
-        panic("out of memory!");
-    memset(current->work_dir,0,256);
-    memcpy(current->work_dir,"/riscv64/",8);
+    // current->work_dir = kmalloc(256);
+    // if(!current->work_dir)
+    //     panic("out of memory!");
+    // memset(current->work_dir,0,256);
+    // memcpy(current->work_dir,"/",1);
     //kernel_thread(user_shell);
     //初始化时钟中断
     timer_init(TIMER_DEVICE_0);

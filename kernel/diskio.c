@@ -53,7 +53,7 @@ DRESULT disk_read(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
         // }
         repeat_count = 0xff;
 start:
-        if(sd_read_sector(buff + c*512,sector + c,1)) {
+        if(sd_read_sector(buff + c*512,sector + c)) {
             disk_init();
             //printk("count:%d\n",repeat_count);
             if (repeat_count) {
@@ -72,30 +72,28 @@ start:
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-// DRESULT disk_write(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
-// {
-//     if (buff == NULL) {
-//         printk("Error\n");
-//         return RES_ERROR;
-//     }
-//     int repeat_count;
-//     for(int c = 0;c < count;c++) {
-//         repeat_count = 0xff;
-//         printk("write\n");
-// disk_repeat:
-//         if(sd_write_sector(buff + c*512,sector + c,1)) {
-//             disk_init();
-//             if (repeat_count) {
-//                 repeat_count -= 1;
-//                 goto disk_repeat;
-//             }
-//             printk("write error\n");
-//             return RES_ERROR;
-//         }
-//         rw_count++;
-//     }
-//     return RES_OK;
-// }
+DRESULT disk_write(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
+{
+    if (buff == NULL) {
+        printk("Error\n");
+        return RES_ERROR;
+    }
+    int repeat_count;
+    for(int c = 0;c < count;c++) {
+        repeat_count = 0xff;
+disk_repeat:
+        if(sd_write_sector(buff + c*512,sector + c)) {
+            disk_init();
+            if (repeat_count) {
+                repeat_count -= 1;
+                goto disk_repeat;
+            }
+            return RES_ERROR;
+        }
+        rw_count++;
+    }
+    return RES_OK;
+}
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
@@ -135,7 +133,7 @@ start:
 DRESULT disk_init(void) {
     uint8_t status = sd_init();
     if (status != 0) {
-        printk("sd init %d",status);
+        panic("sd init error");
         return RES_ERROR;
     }
 //    printk("card info status %d\n", status);

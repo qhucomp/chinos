@@ -48,7 +48,7 @@ typedef struct __task_struct {
 } task_struct;
 
 //idle进程的结构
-extern task_struct init_task;
+extern task_struct idle_task;
 
 //进程链表
 extern task_struct *task_list;
@@ -90,6 +90,7 @@ void delete_task(task_struct *task);
  */
 task_struct *alloc_task(task_struct *parent);
 
+void init_task(pid_t pid,task_struct *task,task_struct *parent);
 //指向当前的进程
 extern task_struct *current;
 

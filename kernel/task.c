@@ -3,7 +3,7 @@
 #include "include/sysctl.h"
 #include "include/printk.h"
 #include "include/string.h"
-task_struct init_task = INIT_TASK(init_task);
+task_struct idle_task;
 task_struct *task_list;
 uint64_t pid_bitmap[32];
 task_struct *current;
@@ -91,10 +91,7 @@ static pid_t get_new_pid(void) {
     }
     return 0;
 }
-
-task_struct *alloc_task(task_struct *parent) {
-    pid_t pid = get_new_pid();
-    task_struct *task = kmalloc(sizeof(task_struct));
+void init_task(pid_t pid,task_struct *task,task_struct *parent) {
     if (!task)
         panic("out of memory!");
 
@@ -120,7 +117,7 @@ task_struct *alloc_task(task_struct *parent) {
     if (parent != NULL)
         memcpy(task->work_dir,parent->work_dir,strlen(parent->work_dir));
     else
-        memcpy(task->work_dir,"/riscv64/",8);
+        memcpy(task->work_dir,"/",1);
     task->parent = parent;
     task->chilren = kmalloc(sizeof(task_struct *) * 8);
     if(!task->chilren)
@@ -128,5 +125,12 @@ task_struct *alloc_task(task_struct *parent) {
     memset(task->chilren,0,sizeof(task_struct *) * 8);
 
     task->chilren_len = 8;
+}
+task_struct *alloc_task(task_struct *parent) {
+    pid_t pid = get_new_pid();
+    task_struct *task = kmalloc(sizeof(task_struct));
+    if (!task)
+        panic("out of memory!");
+    init_task(pid,task,parent);
     return task;
 }

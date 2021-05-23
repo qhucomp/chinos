@@ -107,7 +107,7 @@ typedef struct __mbr {
 } __attribute__((packed)) mbr_struct;
 
 fat32_fs *fat32_init(void);
-//size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size);
+size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size);
 typedef struct __dentry dentry_struct;
 size_t fat32_read(dentry_struct *p,void *buf,size_t size);
 dentry_struct *fat32_open(const char *path);
@@ -118,7 +118,7 @@ dentry_struct *fat32_open(const char *path);
 #define is_short_entry(e) (!((e)->dir_attr == 0xf || (e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05))
 #define DEFAULT_LOAD_SECTOR 128
 #define MAX_NAME_LEN 256
-#define EMPTY_CLUSNO (0xf0000000)
+#define EMPTY_CLUSNO (0xffffff7)
 #define IS_EMPTY_DIR_ENTRY(e) ((e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05)
 extern fat32_fs *fs;
 #endif
