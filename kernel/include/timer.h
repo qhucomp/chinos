@@ -116,5 +116,5 @@ void timer_disable_interrupt(timer_device_number_t timer_number, timer_channel_n
 // 1ms
 #define MIN_TIME_STEP   (10000000UL)
 
-#define DEFAULT_TIME_STEP (MIN_TIME_STEP*6000)
+#define DEFAULT_TIME_STEP (MIN_TIME_STEP*7000)
 #endif

@@ -16,22 +16,14 @@
 uint64_t last_time_interrupt;
 void init_scheduler(void) {
     current = &idle_task;
-    current->epc = (uintptr_t)idle;
+    init_task(0,current,current);
+    current->epc = (uintptr_t)user_shell;
+    current->sp = 0x80200000;
     current->create_time = sysctl_get_time_us() / 1000;
     current->left_time = 1000;
-    current->pid = 0;
-    // current->fd_bitmap = 1;
-    // current->entry = kmalloc(sizeof(dentry_struct *) * 64);
-    // memset(current->entry,0,sizeof(dentry_struct *) * 64);
     pid_bitmap[0] = 1;
     task_list = current;
     task_list->next = task_list->prev = task_list;
-    // current->work_dir = kmalloc(256);
-    // if(!current->work_dir)
-    //     panic("out of memory!");
-    // memset(current->work_dir,0,256);
-    // memcpy(current->work_dir,"/",1);
-    //kernel_thread(user_shell);
     //初始化时钟中断
     timer_init(TIMER_DEVICE_0);
     timer_set_interval(TIMER_DEVICE_0,TIMER_CHANNEL_0,DEFAULT_TIME_STEP);
@@ -45,11 +37,16 @@ void task_scheduler(void *data) {
     uint64_t t = sysctl_get_time_us() / 1000;
     uint64_t deltaT = t - last_time_interrupt;
     last_time_interrupt = t;
-
+    //printk("scheduler pid:%d\n",current->pid);
     if (deltaT >= current->left_time) {
-        printk("scheduler!\n");
+        //printk("scheduler!\n");
         current->left_time = 1000;
-        task_struct *next_task = current->next;
+        task_struct *next_task = current;
+        while(1) {
+            next_task = next_task->next;
+            if (!(next_task->status & TASK_FLAG_FORK))
+                break;
+        }
         current->status = TASK_WAIT_CPU;
         if (!next_task)
             next_task = task_list;
@@ -61,7 +58,7 @@ void task_scheduler(void *data) {
         else
             set_mpp(MPP_MACHINE);
 
-        printk("current pid:%d flag:%d\n",current->pid,next_task->flag);
+        //printk("current pid:%d flag:%d\n",current->pid,next_task->flag);
     } else {
         current->left_time -= deltaT;
     }

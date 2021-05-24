@@ -34,7 +34,7 @@
 #define SYS_mmap            222
 #define SYS_wait4           260
 #define SYS_start_thread    32
-
+#define SYS_user_task       94
 #define AT_FDCWD
 extern char *user_heap_start;
 extern char *user_heap_end;
@@ -55,7 +55,9 @@ uintptr_t handle_ecall(uintptr_t extension,regs *reg);
 
 ssize_t sys_write(int fd,void *buf,size_t count);
 uintptr_t sys_brk(size_t pos);
-int sys_fork(void);
-void sys_exit(int code);
+//void sys_exit(int code);
 void register_syscall(void);
+int sys_wait4(pid_t pid,int *status,int options);
+int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid);
+int sys_exit(int code);
 #endif

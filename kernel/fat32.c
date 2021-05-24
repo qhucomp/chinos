@@ -102,8 +102,8 @@ fat32_fs *fat32_init(void) {
     //     printk("%x ",fs->fat1[i]);
     // }
     // printk("\n");
-    printk("write disk test\n");
-    fat32_write(fs,"/test.txt","this is a test\n",15);
+    // printk("write disk test\n");
+    // fat32_write(fs,"/test.txt","this is a test\n",15);
     printk("fat LBA:%d,fat sector count:%d,data LBA:%d\n",fs->start_fat_sector,fs->count,fs->data_sector);
     printk("num fats:%d,fatsz32:%d\n",(uint32_t)fs->boot.bpb_num_fats,fs->boot.bpb_fatsz32);
     printk("FAT32 init..........OK\n");
@@ -136,23 +136,23 @@ char *get_short_name(const char *name,char *buf) {
     size_t name_len = strlen(name);
     //buf[11] = 0;
     buf[0] = 0x20;
-    printk("copy name:%d\n",buf[0]);
+    //printk("copy name:%d\n",buf[0]);
     char *c = strchr(name,'.');
     int prefix_len = c - name;
-    printk("%p %p\n",c,name);
+    //printk("%p %p\n",c,name);
     if (c == NULL)
         prefix_len = name_len;
-    printk("prefix_len:%d\n",prefix_len);
+    //printk("prefix_len:%d\n",prefix_len);
     if (prefix_len < 8) {
         memcpy(buf,name,prefix_len);
-        printk("copy name:%d\n",buf[0]);
+        //printk("copy name:%d\n",buf[0]);
         int size = name_len - prefix_len;
         if (size > 3)
             size = 3;
         memcpy(buf + 8,c + 1,size);
         strupr(buf);
     }
-    printk("NAME:%s len:%d\n",buf,name_len);
+    //printk("NAME:%s len:%d\n",buf,name_len);
     return buf;
 }
 
@@ -226,13 +226,19 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     //     printk("%x ",fs->fat1[i]);
     // }
     // 读取根目录项
+    //printk("dir entry!\n");
     root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count*512);
+    //printk("root_buf:%p\n",root_buf);
     // printk("address:%p size:%d count:%d\n",root_buf,fs->boot.bpb_sec_per_clus*dentry->sector_count*512,dentry->sector_count);
     if (root_buf == NULL)
         panic("out of memory!");
-    for(uint32_t count = 0;count < dentry->sector_count;count++)
+    //printk("total:%d\n",dentry->sector_count);
+    for(uint32_t count = 0;count < dentry->sector_count;count++) {
         if (disk_read(0,(uint8_t *)root_buf + 512*fs->boot.bpb_sec_per_clus*count,dentry->sectorno_list[count],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             panic("read disk failed");
+        //printk("count:%d\n",count);
+
+    }
     char short_name_buffer[12];
     get_short_name(name,short_name_buffer);
     //printk("short name:%s\n",short_name_buffer);
@@ -260,6 +266,12 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
             }
             if (!strncmp(dname,buffer,max_len)) {
                 //printk("dir name:%s\n",buffer);
+                if (max_len < 12) {
+                    char *temp = kmalloc(name_len);
+                    memcpy(temp,dname,name_len);
+                    dname = temp;
+                }
+
                 dentry_p = create_dentry();
                 dentry_p->name = dname;
                 dentry_p->file_size = entry->dir_file_size;
@@ -351,14 +363,16 @@ dentry_struct *fat32_open(const char *path) {
     }
     //printk("pre-read\n");
     //预读
-    if (entry != NULL) {
-        uint8_t *buf = kmalloc(512*fs->boot.bpb_sec_per_clus);
-        for(i = 0;i < entry->sector_count;i++)
-            if (disk_read(0,buf,entry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) 
-                break;
-        kfree(buf);
-    }
-    
+    // if (entry != NULL) {
+    //     uint8_t *buf = kmalloc(512*fs->boot.bpb_sec_per_clus);
+    //     for(i = 0;i < entry->sector_count;i++)
+    //         if (disk_read(0,buf,entry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) 
+    //             break;
+    //     kfree(buf);
+    // }
+    // if (entry != NULL)
+    //     for(int i = 0;i < entry->sector_count;i++)
+    //         printk("%d ",entry->sectorno_list[i]);
     return entry;
 }
 
@@ -366,17 +380,17 @@ static uint32_t *alloc_fat_index(size_t size,size_t *fat_index_len) {
     size_t len = size / (512*fs->boot.bpb_sec_per_clus);
     if (size % (512*fs->boot.bpb_sec_per_clus) != 0)
         len++;
-    printk("len:%d\n",len);
+    //printk("len:%d\n",len);
     uint32_t *fat_index_list = kmalloc(sizeof(uint32_t)*len);
     //fat_index_list[0] = fs->fs_info.fsi_next_free;
     uint32_t search_index = 3; //= fs->fs_info.fsi_next_free;
     //printk("free_index:%d\n",fs->fs_info.fsi_next_free);
     for(size_t i = 0;i <= len;i++) {
         while(1) {
-            printk("search_index:%x\n",search_index);
+            //printk("search_index:%x\n",search_index);
             if (search_index < fs->count*128) {
 
-                printk("value:%x\n",fs->fat1[search_index]);
+                //printk("value:%x\n",fs->fat1[search_index]);
                 if (fs->fat1[search_index] == 0) {
                     if (i < len) {
                         fs->fat1[fat_index_list[i - 1]] = search_index;
@@ -399,10 +413,10 @@ static uint32_t *alloc_fat_index(size_t size,size_t *fat_index_len) {
 static uint32_t expand_fat_index(uint32_t index) {
     uint32_t search_index = index;
     while(1) {
-        printk("search_index:%x\n",search_index);
+        //printk("search_index:%x\n",search_index);
         if (search_index < fs->count*128) {
 
-            printk("value:%x\n",fs->fat1[search_index]);
+            //printk("value:%x\n",fs->fat1[search_index]);
             if (fs->fat1[search_index] == 0) {
                 fs->fat1[index] = search_index;
                 fs->fat1[search_index] = FILE_END;
@@ -525,10 +539,10 @@ start: ;
         if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             panic("read disk error");
     for(int i = 0;i < 16*dentry->sector_count;i++) {
-        printk("i:%d\n",i);
+        //printk("i:%d\n",i);
         if (IS_EMPTY_DIR_ENTRY(temp + i)) {
             sdentry = temp + i;
-            printk("dentry index:%d\n",i);
+            //printk("dentry index:%d\n",i);
             break;
         }
     }

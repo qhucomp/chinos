@@ -40,9 +40,11 @@ void free_dentry(dentry_struct *ptr) {
     if(!ptr)
         return;
     kfree(ptr->sectorno_list);
+    //printk("sectorno_list\n");
     if(ptr->name)
         kfree(ptr->name);
-    kfree(ptr->sectorno_list);
+    //printk("name\n");
+    kfree(ptr);
 }
 
 size_t vfs_read(dentry_struct *p,void *buf,size_t size) {

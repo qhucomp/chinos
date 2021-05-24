@@ -6,6 +6,8 @@
 #include "include/task.h"
 #include "include/kmalloc.h"
 #include "include/string.h"
+#include "include/user.h"
+#include "include/shell.h"
 
 syscall_func syscalls[300];
 
@@ -17,10 +19,12 @@ static int get_new_fd(void) {
             }
     return -1;
 }
-
+void sys_user_task(const char *path);
 ssize_t sys_read(int64_t fd,void *buf,size_t count) {
     ssize_t result = 0;
+    //printk("syscall read %d %p\n",fd,current->entry[fd - 2]);
     if (current->entry[fd - 2]) {
+        //printk("ok\n");
         result = vfs_read(current->entry[fd - 2],buf,count);
     }
     return result;
@@ -38,6 +42,7 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
     strncat(_p,path,len);
     dentry_struct *p = vfs_open(_p);
     current->entry[fd - 2] = p;
+    //printk("fd:%d %p\n",fd,current->entry[fd - 2]);
     if(!p)
         return -1;
     return fd;
@@ -58,8 +63,15 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
         case SYS_close:
             return 0;
         case SYS_exit:
-            sys_exit(reg->x10);
-            while(1);
+            return sys_exit(reg->x10);
+        case SYS_brk:
+            return sys_brk(reg->x10);
+        case SYS_wait4:
+            return sys_wait4(reg->x10,(int *)reg->x11,reg->x12);
+        case SYS_clone:
+            return sys_clone(reg->x10,reg->x11,reg->x12,reg->x13,reg->x14);
+        case SYS_user_task:
+            sys_user_task((char *)reg->x10);
             return 0;
         default:
             return 0;
@@ -85,14 +97,70 @@ uintptr_t sys_brk(size_t pos) {
     return current->brk_base;
 }
 
-void sys_exit(int code) {
+int sys_exit(int code) {
     delete_task(current);
+    current->exit_code = code;
+    for(int i = 0;i < current->parent->chilren_len;i++) {
+        if (current->parent->chilren[i] && current->parent->chilren[i]->status != TASK_DIE) {
+            current = current->parent->chilren[i];
+            return current->task_reg.x10;
+        }
+    }
     current = current->parent;
-    return;
+    //printk("pid:%d %p\n",current->pid,current->epc);
+    // if (current->pid == 0)
+    //     current->epc = (uintptr_t)user_shell - 4;
+    //printk("pid:%d ret:%d\n",current->pid,current->task_reg.x10);
+    current->task_reg.x10 = current->pid;
+    return current->task_reg.x10;
 }
 
+int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
+    task_struct *task = alloc_task(current);
+    void *user_space = user_malloc(task->pid);
+    task->task_reg = current->task_reg;
+    memcpy(user_space,get_user_space(current->pid),USER_HEAP_SIZE);
+    uint64_t offset = current->epc - (uint64_t)get_user_space(current->pid);
+    task->epc = (uintptr_t)user_space + offset;
+    offset = current->task_reg.x2 - (uint64_t)get_user_space(current->pid);
+    task->sp = task->task_reg.x11 = (uintptr_t)user_space + offset;
+
+    task->task_reg.x10 = 0;
+    current->task_reg.x10 = task->pid;
+    //printk("fork pid:%d\n",task->pid);
+    task->status = current->status;
+    current->status |= TASK_FLAG_FORK;
+    add_task(task);
+    current = task;
+    return 0;
+}
+
+int sys_wait4(pid_t pid,int *status,int options) {
+    int result = 0;
+    if (pid == -1) {
+        for(int i = 0;i < current->chilren_len;i++) {
+            if (current->chilren[i] && current->chilren[i]->status == TASK_DIE) {
+                result = current->chilren[i]->exit_code;
+                kfree(current->chilren[i]);
+                break;
+            } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
+                result = current->chilren[i]->exit_code;
+                kfree(current->chilren[i]);
+                break;
+            }
+        }
+    }
+    return result;
+}
+void sys_user_task(const char *path) {
+    //printk("sys_user_task\n");
+    task_struct *task = user_thread(path);
+    //printk("parent epc:%p",task->parent->epc);
+    current = task;
+}
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;
     syscalls[SYS_read] = (syscall_func)sys_read;
+
 }

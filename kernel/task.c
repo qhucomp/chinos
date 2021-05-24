@@ -9,11 +9,11 @@ uint64_t pid_bitmap[32];
 task_struct *current;
 void add_task(task_struct *task) {
     //RR调度算法
-    sysctl_disable_irq();
-    printk("add_task():pid:%d bool:%d\n",task->pid,task_list->next == task_list);
+    //sysctl_disable_irq();
+    // printk("add_task():pid:%d bool:%d\n",task->pid,task_list->next == task_list);
     if (task_list->next == task_list) {
         task_list->next = task;
-        printk("task pid:%d\n",task_list->next->pid);
+        //printk("task pid:%d\n",task_list->next->pid);
         task_list->prev = task;
         task->prev = task_list;
         task->next = NULL;
@@ -24,7 +24,7 @@ void add_task(task_struct *task) {
         task_list->prev = task;
         task->next = NULL;
     }
-    sysctl_enable_irq();
+    //sysctl_enable_irq();
 }
 
 static void clear_pid(pid_t pid) {
@@ -40,27 +40,26 @@ static void clear_pid(pid_t pid) {
 
 void delete_task(task_struct *task) {
     //RR调度算法
-    sysctl_disable_irq();
+    //sysctl_disable_irq();
 
     //释放子进程
     for(uint32_t i = 0;i < task->chilren_count;i++)  {
-        if (task->chilren[i])
+        if (task->chilren[i]) {
             delete_task(task->chilren[i]);
-        kfree(task->chilren[i]);
+            kfree(task->chilren[i]);
+        }
     }
-
     //释放打开的文件
     for(uint32_t i = 0;i < 64;i++)  {
-        if (task->fd_bitmap & (1ULL << i))
+        if (task->fd_bitmap & (1ULL << i)) {
             free_dentry(task->entry[i]);
-        kfree(task->chilren[i]);
+        }
     }
-
     kfree(task->chilren);
     kfree(task->work_dir);
     kfree(task->entry);
     clear_pid(task->pid);
-
+    task->status = TASK_DIE;
     if (task->next == NULL) {
         //删除队列末尾的task_struct
         task->prev->next = NULL;
@@ -77,7 +76,7 @@ void delete_task(task_struct *task) {
         prev_task->next = next_task;
         next_task->prev = prev_task;
     }
-    sysctl_enable_irq();
+    //sysctl_enable_irq();
 }
 
 static pid_t get_new_pid(void) {
@@ -119,6 +118,9 @@ void init_task(pid_t pid,task_struct *task,task_struct *parent) {
     else
         memcpy(task->work_dir,"/",1);
     task->parent = parent;
+    for(int i = 0;i < parent->chilren_len;i++)
+        if(!task->chilren[i])
+            task->chilren[i] = task;
     task->chilren = kmalloc(sizeof(task_struct *) * 8);
     if(!task->chilren)
         panic("out of memory!");

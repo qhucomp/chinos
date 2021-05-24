@@ -44,6 +44,7 @@ prefix := $(command_path)riscv64-unknown-elf-
 CC := $(prefix)gcc
 LD := $(prefix)ld
 OBJCOPY := $(prefix)objcopy
+OBJDUMP := $(prefix)objdump
 CFLAGS := -mcmodel=medany -Wall -Werror -O0 -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
 lds := kernel/k210.lds
 DD := $(command_path)dd
@@ -52,6 +53,7 @@ all: $(obj)
 
 	$(LD) -o kernel/kernel.elf -T $(lds) $(obj)
 	$(OBJCOPY) kernel/kernel.elf --strip-all -O binary kernel.bin
+	$(OBJDUMP) -d kernel/kernel.elf > kernel.asm
 	$(DD) if=kernel.bin of=rustsbi-k210.bin bs=128k seek=1
 	cp rustsbi-k210.bin k210.bin
 	rm kernel.bin

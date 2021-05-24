@@ -9,6 +9,6 @@ task_struct *kernel_thread(void *address) {
     task_struct *task = alloc_task(current);
     add_task(task);
     task->epc = (uintptr_t)address;
-    task->flag |= TASK_FLAG_KERNEL_THREAD;
+    //task->flag = TASK_FLAG_KERNEL_THREAD;
     return task;
 }

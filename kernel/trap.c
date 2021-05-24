@@ -34,8 +34,11 @@ void _start_trap(regs *reg) {
                 current->epc = read_csr(mepc);
                 current->sp =  read_csr(mscratch);
                 current->task_reg = *reg;
-                reg->x10 = handle_ecall(reg->x17,reg);
+                current->task_reg.x10 = handle_ecall(reg->x17,reg);
+                *reg = current->task_reg;
+                //printk("reg->x10=%d\n",reg->x10);
                 write_csr(mepc,current->epc + 4);
+                //printk("mepc:%p\n",read_csr(mepc));
                 break;
             // case CAUSE_ILLEGAL_INSTRUCTION:
             //     printk("mepc:%p\n",read_csr(mepc));
@@ -43,11 +46,22 @@ void _start_trap(regs *reg) {
             //     write_csr(mepc,0x80300000);
             //     break;
             case CAUSE_ILLEGAL_INSTRUCTION:
-                write_csr(mepc,0x80300000 + 0x1000);
+                // printk("new task\n");
+                // printk("epc:%p pid:%d\n",read_csr(mepc),current->pid);
+                // if (read_csr(mepc) == 0) {
+                    // printk("switch parent!\n");
+                    // delete_task(current);
+                    // current->exit_code = -1;
+                    // current = current->parent;
+                    // *reg = current->task_reg;
+                    // write_csr(mepc,current->epc + 4);
+                    // printk("pid:%d mepc:%p\n",current->pid,current->epc);
+                    // break;
+                // }
+                //write_csr(mepc,current->epc);
                 break;
             default:
-                write_csr(mepc,0x80300000 + 0x1000);
-                break;
+                printk("epc:%p\n",read_csr(mepc));
                 panic("Exception!");
         }
     } else {
@@ -57,22 +71,26 @@ void _start_trap(regs *reg) {
         current->task_reg = *reg;
         handle_irq_m_ext();
 
-        //如果是第一次运行则不需要恢复寄存器
+        // 恢复寄存器
         if (!(current->flag & TASK_FLAG_NO_RUN)){
-            current->task_reg.x2 = reg->x2;
+            // printk("first epc:%p\n",current->epc);
+            // current->task_reg.x2 = current->epc;
+            *reg = current->task_reg;
+        } else {
+            current->task_reg.x2 = current->epc;
             *reg = current->task_reg;
         }
 
         if (current->flag & TASK_FLAG_NO_RUN)
             current->flag &= ~TASK_FLAG_NO_RUN;
         
-        printk("switch epc:%p\n",current->epc);
+        //printk("switch epc:%p pid:%d\n",current->epc,current->pid);
         write_csr(mepc,current->epc);
         //printk("mepc=%p\n",read_csr(mepc));
         //write_csr(mepc,read_csr(mepc));
-        set_mpp(MPP_MACHINE);
-        reg->x12 = current->sp;
-        return;
+        // set_mpp(MPP_MACHINE);
+        // reg->x12 = current->sp;
+        // return;
     }
     reg->x12 = current->sp;
     set_mpp(MPP_MACHINE);

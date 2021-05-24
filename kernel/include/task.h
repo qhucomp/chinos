@@ -13,7 +13,7 @@
 #define TASK_WAIT_CPU 2
 #define TASK_WAIT_IO 3
 #define TASK_RUN 4
-
+#define TASK_DIE 5
 
 //用户级进程
 #define TASK_FLAG_USER_THREAD (1U << 1)
@@ -24,6 +24,8 @@
 //内核线程
 #define TASK_FLAG_KERNEL_THREAD (1U << 3)
 
+//fork
+#define TASK_FLAG_FORK (1U << 4)
 typedef struct __task_struct {
     pid_t pid;
     uint64_t create_time;

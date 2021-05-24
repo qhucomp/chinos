@@ -52,6 +52,8 @@ void kernel_init(void) {
     disk_init();
     fat32_init();
     //register_syscall();
+    init_scheduler();
+
     //开启中断
     sysctl_enable_irq();
     last_time_interrupt = sysctl_get_time_us() / 1000;
@@ -78,9 +80,9 @@ int main(void) {
     // copy_section(elf,user,".data");
     // copy_section(elf,user,".srodata"); 
     // init_task(0,&idle_task,NULL);
-    // init_scheduler();
     // write_csr(mepc,_m_mode_start);
     // asm volatile("mret");
+    ECALL(0,0,0,0,0,0,0);
     while (1);
     return 0;
 }
