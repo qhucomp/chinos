@@ -16,7 +16,6 @@ kernel/sysctl.o \
 kernel/task.o \
 kernel/timer.o \
 kernel/plic.o \
-kernel/thread_test.o \
 kernel/scheduler.o \
 kernel/spi.o \
 kernel/misc.o \
