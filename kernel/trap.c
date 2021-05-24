@@ -9,6 +9,7 @@
 #include "include/plic.h"
 #include "include/thread_test.h"
 #include "include/sysctl.h"
+#include "include/user.h"
 #define CAUSE_ILLEGAL_INSTRUCTION 0x2
 void _start_trap(regs *reg) {
     int64_t mcause = read_csr(mcause);
@@ -23,8 +24,8 @@ void _start_trap(regs *reg) {
             case CAUSE_MACHINE_ECALL:
                 if (!reg->x17) {
                     write_csr(mepc,current->epc);
-                    reg->x12 = 0x80100000;
-                    current->sp = 0x80100000;
+                    reg->x12 = 0x80200000;
+                    current->sp = 0x80200000;
                     current->flag &= ~TASK_FLAG_NO_RUN;
                     set_mpp(MPP_MACHINE);
                     return;
@@ -34,11 +35,12 @@ void _start_trap(regs *reg) {
                 current->epc = read_csr(mepc);
                 current->sp =  read_csr(mscratch);
                 current->task_reg = *reg;
+                //printk("syscall number:%d epc:%p pid:%d\n",reg->x17,current->epc,current->pid);
                 current->task_reg.x10 = handle_ecall(reg->x17,reg);
                 *reg = current->task_reg;
-                //printk("reg->x10=%d\n",reg->x10);
+                // printk("reg->x10=%d\n",reg->x10);
                 write_csr(mepc,current->epc + 4);
-                //printk("mepc:%p\n",read_csr(mepc));
+                //printk("mepc:%p sp:%p pid:%d\n",read_csr(mepc),current->sp,current->pid);
                 break;
             // case CAUSE_ILLEGAL_INSTRUCTION:
             //     printk("mepc:%p\n",read_csr(mepc));
@@ -46,22 +48,11 @@ void _start_trap(regs *reg) {
             //     write_csr(mepc,0x80300000);
             //     break;
             case CAUSE_ILLEGAL_INSTRUCTION:
-                // printk("new task\n");
-                // printk("epc:%p pid:%d\n",read_csr(mepc),current->pid);
-                // if (read_csr(mepc) == 0) {
-                    // printk("switch parent!\n");
-                    // delete_task(current);
-                    // current->exit_code = -1;
-                    // current = current->parent;
-                    // *reg = current->task_reg;
-                    // write_csr(mepc,current->epc + 4);
-                    // printk("pid:%d mepc:%p\n",current->pid,current->epc);
-                    // break;
-                // }
-                //write_csr(mepc,current->epc);
+                printk("illegal mepc:%p\n",read_csr(mepc));
+                write_csr(mepc,0x80200000 + 0x1000 + 0x1000);
                 break;
             default:
-                printk("epc:%p\n",read_csr(mepc));
+                printk("epc:%p pid:%d\n",read_csr(mepc),current->pid);
                 panic("Exception!");
         }
     } else {
@@ -84,7 +75,6 @@ void _start_trap(regs *reg) {
         if (current->flag & TASK_FLAG_NO_RUN)
             current->flag &= ~TASK_FLAG_NO_RUN;
         
-        //printk("switch epc:%p pid:%d\n",current->epc,current->pid);
         write_csr(mepc,current->epc);
         //printk("mepc=%p\n",read_csr(mepc));
         //write_csr(mepc,read_csr(mepc));

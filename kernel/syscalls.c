@@ -92,35 +92,42 @@ end: ;
     return result;
 }
 
-uintptr_t sys_brk(size_t pos) {
-    current->brk_base += pos;
+intptr_t sys_brk(size_t pos) {
+    if (pos)
+        current->brk_base = pos;
+    //printk("pos:%p %p\n",current->brk_base,pos);
     return current->brk_base;
 }
 
 int sys_exit(int code) {
     delete_task(current);
     current->exit_code = code;
-    for(int i = 0;i < current->parent->chilren_len;i++) {
-        if (current->parent->chilren[i] && current->parent->chilren[i]->status != TASK_DIE) {
-            current = current->parent->chilren[i];
-            return current->task_reg.x10;
-        }
-    }
+    // for(int i = 0;i < current->parent->chilren_len;i++) {
+    //     if (current->parent->chilren[i] && current->parent->chilren[i]->status != TASK_DIE) {
+    //         current = current->parent->chilren[i];
+    //         return current->task_reg.x10;
+    //     }
+    // }
     current = current->parent;
     //printk("pid:%d %p\n",current->pid,current->epc);
     // if (current->pid == 0)
     //     current->epc = (uintptr_t)user_shell - 4;
     //printk("pid:%d ret:%d\n",current->pid,current->task_reg.x10);
     current->task_reg.x10 = current->pid;
+    current->status &= ~TASK_FLAG_FORK;
     return current->task_reg.x10;
 }
 
 int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
+    if (current->pid == 0)
+        return 0;
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
     task->task_reg = current->task_reg;
     memcpy(user_space,get_user_space(current->pid),USER_HEAP_SIZE);
     uint64_t offset = current->epc - (uint64_t)get_user_space(current->pid);
+    //printk("fork!\n");
+    //printk("pid:%d offset:%p %p\n",current->pid,current->epc,(uint64_t)get_user_space(current->pid));
     task->epc = (uintptr_t)user_space + offset;
     offset = current->task_reg.x2 - (uint64_t)get_user_space(current->pid);
     task->sp = task->task_reg.x11 = (uintptr_t)user_space + offset;
@@ -137,26 +144,34 @@ int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
 
 int sys_wait4(pid_t pid,int *status,int options) {
     int result = 0;
-    if (pid == -1) {
-        for(int i = 0;i < current->chilren_len;i++) {
-            if (current->chilren[i] && current->chilren[i]->status == TASK_DIE) {
-                result = current->chilren[i]->exit_code;
-                kfree(current->chilren[i]);
-                break;
-            } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
-                result = current->chilren[i]->exit_code;
-                kfree(current->chilren[i]);
-                break;
-            }
-        }
+    //printk("wait1!\n");
+    //printk("wait %d\n",pid == -1);
+    for(int i = 0;i < current->chilren_len;i++) {
+        //printk("current->chilren[%d]=%p\n",i,current->chilren[i]);
+        if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && pid == -1) {
+            *status = current->chilren[i]->exit_code;
+            kfree(current->chilren[i]);
+            current->chilren[i] = NULL;
+            //printk("wait!\n");
+            break;
+        } /*else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
+            result = current->chilren[i]->exit_code;
+            kfree(current->chilren[i]);
+            current->chilren[i] = NULL;
+            break;
+        }*/
     }
     return result;
 }
 void sys_user_task(const char *path) {
-    //printk("sys_user_task\n");
+    if(path == NULL)
+        return;
+    //printk("path:%s\n",path);
     task_struct *task = user_thread(path);
-    //printk("parent epc:%p",task->parent->epc);
+    current->status |= TASK_FLAG_FORK;
     current = task;
+    current->epc -= 4;
+    //printk("mepc:%p\n",current->epc);
 }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;

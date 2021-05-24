@@ -15,18 +15,20 @@ size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
         s++;
     if (p->sector_count * 512 < size)
         s = p->sector_count;
-
-    void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
-    if (!buffer)
-        panic("out of memory!");
+    //printk("...\n");
+    //void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
+    char buffer[66560];
+    // if (!buffer)
+    //     panic("out of memory!");
     memset(buffer,0,512*s*fs->boot.bpb_sec_per_clus);
     for(size_t i = 0;i < s;i++) {
 
         if (result >= size)
             break;
         //printk("sector count:%d\n",p->sectorno_list[i]);
-        if (disk_read(0,buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
+        if (disk_read(0,(uint8_t *)buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             break;
+        
         result += 512*fs->boot.bpb_sec_per_clus;
     }
     if (result > size)
@@ -40,7 +42,7 @@ size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
     // } else
     //     memcpy(buf,buffer,result);
     // kfree(buffer);
-    kfree(buffer);
+    // kfree(buffer);
     return result;
 }
 
@@ -337,6 +339,8 @@ dentry_struct *fat32_open(const char *path) {
     int i = 0;
     int flag = 0;
     memset(name,0,256);
+    if (path == NULL)
+        return NULL;
     for(i = 0;path[i] != '/';i++);
     i++;
     //printk("path:%s\n",path);

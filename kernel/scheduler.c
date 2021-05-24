@@ -26,7 +26,7 @@ void init_scheduler(void) {
     task_list->next = task_list->prev = task_list;
     //初始化时钟中断
     timer_init(TIMER_DEVICE_0);
-    timer_set_interval(TIMER_DEVICE_0,TIMER_CHANNEL_0,DEFAULT_TIME_STEP);
+    timer_set_interval(TIMER_DEVICE_0,TIMER_CHANNEL_0,DEFAULT_TIME_STEP*2);
     timer_set_irq(TIMER_DEVICE_0,TIMER_CHANNEL_0,task_scheduler,1);
     timer_set_enable(TIMER_DEVICE_0,TIMER_CHANNEL_0,1);
     printk("scheduler init........OK\n");

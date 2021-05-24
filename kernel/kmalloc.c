@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 extern char _heap_start[];
-char *kernel_heap_end = (char *)0x80200000;
+char *kernel_heap_end = (char *)0x80300000;
 struct zone zone_struct = {0,FREE,0};
 struct zone *zone_pointer;
 struct zone *zone_array;
@@ -82,6 +82,7 @@ start:
 
 void *_kmalloc(size_t size) {
     int flag = 1;
+    //mem_block_merge();
 start:
     for (struct zone *ptr = zone_pointer;ptr != NULL;ptr = ptr->next) {
         //printk("size:%d ptr->size:%d flag:%d ptr:%p\n",size,ptr->size,ptr->flag,ptr->ptr);

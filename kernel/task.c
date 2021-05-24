@@ -3,6 +3,7 @@
 #include "include/sysctl.h"
 #include "include/printk.h"
 #include "include/string.h"
+#include "include/user.h"
 task_struct idle_task;
 task_struct *task_list;
 uint64_t pid_bitmap[32];
@@ -28,14 +29,14 @@ void add_task(task_struct *task) {
 }
 
 static void clear_pid(pid_t pid) {
-    int i,j;
-    i = pid % 64;
-    if (i > 0)
-        j = i*64 - pid;
-    else
-        j = pid;
+    //int i,j;
+    // i = pid % 64;
+    // if (i > 0)
+    //     j = i*64 - pid;
+    // else
+    //     j = pid;
 
-    pid_bitmap[i] &= ~(1 << j);
+    // pid_bitmap[0] &= ~(1ULL << pid);
 }
 
 void delete_task(task_struct *task) {
@@ -76,6 +77,7 @@ void delete_task(task_struct *task) {
         prev_task->next = next_task;
         next_task->prev = prev_task;
     }
+    memset(get_user_space(current->pid),0,USER_HEAP_SIZE);
     //sysctl_enable_irq();
 }
 
@@ -119,8 +121,8 @@ void init_task(pid_t pid,task_struct *task,task_struct *parent) {
         memcpy(task->work_dir,"/",1);
     task->parent = parent;
     for(int i = 0;i < parent->chilren_len;i++)
-        if(!task->chilren[i])
-            task->chilren[i] = task;
+        if(!parent->chilren[i])
+            parent->chilren[i] = task;
     task->chilren = kmalloc(sizeof(task_struct *) * 8);
     if(!task->chilren)
         panic("out of memory!");

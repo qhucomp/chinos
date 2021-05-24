@@ -21,5 +21,5 @@ task_struct *user_thread(const char *name);
  */
 void *user_malloc(pid_t pid);
 #define get_user_space(pid) user_malloc(pid)
-#define USER_HEAP_SIZE (512*1024)
+#define USER_HEAP_SIZE (64*1024)
 #endif

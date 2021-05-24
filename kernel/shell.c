@@ -34,8 +34,25 @@ int user_shell(void) {
     // printk("count:%d\n",task_count);
     // if (task_count == 0) {
     //     task_count++;
+        int status;
+
         ECALL(SYS_user_task,run_list[0],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
         ECALL(SYS_user_task,run_list[1],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        ECALL(SYS_user_task,run_list[2],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        printk("wait\n");
+        ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+
+        // ECALL(SYS_wait4,-1,&status,0,0,0,0);
+        //printk("read\n");
+        // printk("wait\n");
         printk("test code\n");
     // }
     while(1);
