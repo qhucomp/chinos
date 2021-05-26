@@ -15,6 +15,7 @@ char elf[65536];
 task_struct *user_thread(const char *name) {
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
+    printk("start open\n");
     dentry_struct *p = vfs_open(NULL,name);
     // p = vfs_open(NULL,name);
     // char *elf = kmalloc(p->file_size);
