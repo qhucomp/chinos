@@ -157,10 +157,10 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     dentry_struct *dentry_p = NULL;
     int root_size = 1;
     short_dir_entry *entry = NULL;
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
-    // printk("\n");
+    for(int i = 0;i < 1024;i++) {
+        printk("%x ",fs->fat1[i]);
+    }
+    printk("\n");
     if (dentry == NULL) {
         // 加载根目录下的所有目录项
         int next = fs->boot.bpb_root_clus;
@@ -217,9 +217,9 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     }
     if (name == NULL)
         return dentry;
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
+    for(int i = 0;i < 1024;i++) {
+        printk("%x ",fs->fat1[i]);
+    }
     // 读取根目录项
     //printk("dir entry!\n");
     // root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count*512);
@@ -236,16 +236,16 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     }
     char short_name_buffer[12];
     get_short_name(name,short_name_buffer);
-    //printk("short name:%s\n",short_name_buffer);
+    printk("short name:%s\n",short_name_buffer);
     size_t name_len = strlen(name);
     char *dname;
     char *buffer;
     int max_len = 0;
     // 搜索文件
-    // printk("fat:%p\n",fs->fat1);
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
+    printk("fat:%p\n",fs->fat1);
+    for(int i = 0;i < 1024;i++) {
+        printk("%x ",fs->fat1[i]);
+    }
     // printk("count:%d\n",fs->boot.bpb_sec_per_clus*16*dentry->sector_count);
     for(uint32_t count = 0;count < fs->boot.bpb_sec_per_clus*16*dentry->sector_count;count++) {
         entry = (void *)(root_buf + count*32);
