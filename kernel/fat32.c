@@ -215,6 +215,7 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
             }
         }
     }
+    printk("read root\n");
     if (name == NULL)
         return dentry;
     for(int i = 0;i < 1024;i++) {
