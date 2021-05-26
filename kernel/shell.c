@@ -14,6 +14,7 @@ int user_shell(void) {
                                 "/umount","/unlink","/waitpid","/yield_A","/yield_C"};
         
         int status;
+        printk("start test\n");
         ECALL(SYS_user_task,run_list[0],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
