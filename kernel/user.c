@@ -16,7 +16,7 @@ task_struct *user_thread(const char *name) {
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
     dentry_struct *p = vfs_open(NULL,name);
-    p = vfs_open(NULL,name);
+    // p = vfs_open(NULL,name);
     // char *elf = kmalloc(p->file_size);
     printk("open ok\n");
     //memset(elf,0,p->file_size);
