@@ -168,8 +168,10 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
         push_sectorno(dentry,clusno_to_sectorno(fs,next));
 
         next = fs->fat1[next];
+        int count = 0;
         if (next < FILE_END) {
             while (1) {
+                printk("count:%d\n",count);
                 if (next < fs->count*128) {
                     // 根目录FAT索引未超过缓存好的FAT的情况
                     push_sectorno(dentry,clusno_to_sectorno(fs,next));
