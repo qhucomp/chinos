@@ -130,7 +130,7 @@ void init_task(pid_t pid,task_struct *task,task_struct *parent) {
     memset(task->chilren,0,sizeof(task_struct *) * 8);
     task->chilren_count = 8;
     for(uint32_t i = 0;i < task->chilren_count;i++)  {
-        printk("ok! %p\n",task->chilren[i]);
+        // printk("ok! %p\n",task->chilren[i]);
     }
     task->chilren_len = 8;
 }

@@ -82,6 +82,10 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
         case SYS_uname:
             sys_uname((void *)reg->x10);
             return 0;
+        case SYS_getpid:
+            return sys_getpid();
+        case SYS_getppid:
+            return sys_getppid();
         default:
             return 0;
     }
@@ -177,7 +181,7 @@ int sys_wait4(pid_t pid,int *status,int options) {
 void sys_user_task(const char *path) {
     if(path == NULL)
         return;
-    printk("path:%s\n",path);
+    // printk("path:%s\n",path);
     task_struct *task = user_thread(path);
     current->status |= TASK_FLAG_FORK;
     current = task;
@@ -213,6 +217,12 @@ int sys_sleep(uint64_t sec) {
     return 0;
 }
 
+pid_t sys_getpid(void) {
+    return current->pid;
+}
+pid_t sys_getppid(void) {
+    return current->parent->pid;
+}
 
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;

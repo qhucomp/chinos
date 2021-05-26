@@ -12,50 +12,31 @@ int user_shell(void) {
                                 "/wait","/yield_B","/chdir","/close","/dup2","/exit",
                                 "/fstat","/getdents","/mkdir_","/openat","/sleep",
                                 "/umount","/unlink","/waitpid","/yield_A","/yield_C"};
-    
-    // user_thread(run_list[0]);
-    //user_thread(run_list[7]);
-    // printk("i:%d\n",task_count);
-    // if (task_count < 3) {
-    //     printk("ecall\n");
-    //     ECALL(SYS_user_task,run_list[task_count++],0,0,0,0,0);
-    // } else {
-    //     task_count = 0;
-    // }
-    //ECALL(SYS_user_task,run_list[7],0,0,0,0,0);
-    //asm volatile("nop;");
-    //printk("exit code!\n");
-    // int status;
-    // ECALL(SYS_wait4,-1,&status,0,0,0,0);
-    // printk("status:%d\n",status);
-    // for(int i = 1;i < 38;i++)
-    //     user_thread(run_list[i]);
-    // printk("run end...\n");
-    // printk("count:%d\n",task_count);
-    // if (task_count == 0) {
-    //     task_count++;
         int status;
-        printk("run read\n");
         ECALL(SYS_user_task,run_list[0],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
-
-        // ECALL(SYS_user_task,run_list[1],0,0,0,0,0);
-        // ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
         ECALL(SYS_user_task,run_list[2],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
-        printk("wait\n");
-        ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
-        ECALL(SYS_wait4,-1,&status,0,0,0,0);
-        printk("fuck!\n");
         ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
-        // ECALL(SYS_wait4,-1,&status,0,0,0,0);
-        //printk("read\n");
-        // printk("wait\n");
-        printk("test code\n");
+        ECALL(SYS_user_task,run_list[16],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        ECALL(SYS_user_task,run_list[7],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        ECALL(SYS_user_task,run_list[22],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        ECALL(SYS_user_task,run_list[12],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+        ECALL(SYS_user_task,run_list[30],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+        printk("end test\n");
     // }
     while(1);
     return 1;

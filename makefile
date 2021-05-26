@@ -30,7 +30,8 @@ kernel/dmac.o \
 kernel/user.o \
 kernel/shell.o \
 kernel/init.o \
-kernel/elf_parse.o
+kernel/elf_parse.o \
+kernel/kalloc.o 
 ifeq ($(OS),Windows_NT)
 	r := $(shell cd bootloader/k210 && sh just.sh)
 	r := $(shell cp bootloader/target/riscv64imac-unknown-none-elf/debug/rustsbi-k210.bin .)

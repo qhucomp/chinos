@@ -78,4 +78,6 @@ int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid);
 int sys_exit(int code);
 void sys_uname(struct utsname *ptr);
 int sys_close(uint64_t fd);	
+pid_t sys_getpid(void);
+pid_t sys_getppid(void);
 #endif

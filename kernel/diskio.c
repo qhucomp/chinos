@@ -47,7 +47,7 @@ DRESULT disk_read(uint8_t pdrv, uint8_t *buff, uint32_t sector, uint32_t count)
     }
     int repeat_count;
     for(int c = 0;c < count;c++) {
-        // printk("read sector:%d\n",sector + c);
+        //printk("read sector:%d\n",sector + c);
         // printk("buf:%p\n",buff + c*512);
         // if (rw_count >= 5000) {
         //     disk_init();

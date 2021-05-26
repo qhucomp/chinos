@@ -116,7 +116,7 @@ dentry_struct *fat32_open(dentry_struct *dir,const char *path);
 #define FAT_MASK (0xfffffff)
 #define FILE_END (0xffffff8)
 #define is_short_entry(e) (!((e)->dir_attr == 0xf || (e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05))
-#define DEFAULT_LOAD_SECTOR 32
+#define DEFAULT_LOAD_SECTOR 8
 #define MAX_NAME_LEN 256
 #define EMPTY_CLUSNO (0xffffff7)
 #define IS_EMPTY_DIR_ENTRY(e) ((e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05)
