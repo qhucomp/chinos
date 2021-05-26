@@ -181,12 +181,12 @@ int sys_wait4(pid_t pid,int *status,int options) {
 void sys_user_task(const char *path) {
     if(path == NULL)
         return;
-    // printk("path:%s\n",path);
+    printk("path:%s\n",path);
     task_struct *task = user_thread(path);
     current->status |= TASK_FLAG_FORK;
     current = task;
     current->epc -= 4;
-    //printk("mepc:%p\n",current->epc);
+    printk("mepc:%p\n",current->epc);
 }
 
 void sys_uname(struct utsname *ptr) {
