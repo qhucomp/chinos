@@ -24,8 +24,8 @@ void _start_trap(regs *reg) {
             case CAUSE_MACHINE_ECALL:
                 if (!reg->x17) {
                     write_csr(mepc,current->epc);
-                    reg->x12 = 0x80600000;
-                    current->sp = 0x80600000;
+                    reg->x12 = read_csr(mscratch);
+                    current->sp = read_csr(mscratch);
                     current->flag &= ~TASK_FLAG_NO_RUN;
                     set_mpp(MPP_MACHINE);
                     return;
@@ -49,7 +49,7 @@ void _start_trap(regs *reg) {
             //     break;
             case CAUSE_ILLEGAL_INSTRUCTION:
                 printk("illegal mepc:%p\n",read_csr(mepc));
-                write_csr(mepc,0x80200000 + 0x1000 + 0x1000);
+                // write_csr(mepc,0x80200000 + 0x1000 + 0x1000);
                 break;
             default:
                 printk("epc:%p pid:%d\n",read_csr(mepc),current->pid);

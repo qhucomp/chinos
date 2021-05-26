@@ -212,8 +212,8 @@ int sys_times(struct tms *ptr) {
     return 0;
 }
 
-int sys_sleep(uint64_t sec) {
-    usleep(sec);
+int sys_sleep(struct timespec *sec) {
+    usleep(sec->tv_sec*1000 + sec->tv_nsec/1000000);
     return 0;
 }
 

@@ -26,31 +26,15 @@
 #include "include/task.h"
 
 extern void _trap_entry(void);
-void _m_mode_start(void) {
-    //printk("m mode\n");
-    asm volatile(
-    ".section .text\n"
-    "1:"
-    "    auipc ra,%pcrel_hi(1f);"
-    "    ld ra,%pcrel_lo(1b)(ra);"
-    "    ret;"
-    "    jr ra;"
-    ".align 3\n"
-    "1:  .dword 0x80301000"
-    );
-    printk("process failed\n");
-}
 void kernel_init(void) {
     write_csr(mtvec,_trap_entry);
-    // _write_mtval((uint64_t)_trap_entry);
     // 使用6m以上的内存
-    sysctl_pll_set_freq(SYSCTL_PLL1,800000000UL);
-    sysctl_pll_enable(SYSCTL_PLL1);
+    // sysctl_pll_set_freq(SYSCTL_PLL1,800000000UL);
+    // sysctl_pll_enable(SYSCTL_PLL1);
     fpioa_pin_init();
     init_kmalloc();
     plic_init();
     disk_init();
-    printk("disk init...OK\n");
     fat32_init();
     //register_syscall();
     init_scheduler();
@@ -63,26 +47,7 @@ void kernel_init(void) {
 }
 
 int main(void) {
-    //asm volatile("mv sp,%0"::"r"(0x80200000));
     kernel_init();
-    // if (fat32_open("/fuck") == NULL)
-    //     printk("No!\n");
-    // else
-    //     printk("========== START test_read ==========\nHi, this is a text file.\nsyscalls testing success!\n\n========== END test_read ==========\n");
-    //printk("read start\n");
-    // dentry_struct *p = fat32_open("/read");
-    // void *user = (char *)(0x80300000);
-    // memset(user,0,5120);
-    // void *elf = kmalloc(128*1024);
-    // fat32_read(p,elf,128*1024);
-
-    // copy_section(elf,user,".text");
-    // copy_section(elf,user,".rodata");
-    // copy_section(elf,user,".data");
-    // copy_section(elf,user,".srodata"); 
-    // init_task(0,&idle_task,NULL);
-    // write_csr(mepc,_m_mode_start);
-    // asm volatile("mret");
     ECALL(0,0,0,0,0,0,0);
     while (1);
     return 0;
