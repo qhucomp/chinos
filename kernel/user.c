@@ -18,7 +18,8 @@ task_struct *user_thread(const char *name) {
     dentry_struct *p = vfs_open(NULL,name);
     p = vfs_open(NULL,name);
     // char *elf = kmalloc(p->file_size);
-    memset(elf,0,p->file_size);
+    printk("open ok\n");
+    //memset(elf,0,p->file_size);
     // printk("read ok!\n");
     vfs_read(p,elf,p->file_size);
     // vfs_read(p,elf,p->file_size);
