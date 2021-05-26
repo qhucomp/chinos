@@ -8,9 +8,9 @@
 #include "include/string.h"
 #include "include/user.h"
 #include "include/shell.h"
-
+#include "include/sleep.h"
 syscall_func syscalls[300];
-
+struct tms global_tms;
 static int get_new_fd(void) {
         for(int j = 0;j < 32;j++)
             if (!(current->fd_bitmap & (1U << j))) {
@@ -40,9 +40,15 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
     memset(_p,0,len);
     strncat(_p,current->work_dir,len);
     strncat(_p,path,len);
-    dentry_struct *p = vfs_open(_p);
+    dentry_struct *p;
+    if (dirfd == AT_FDCWD)
+        p = vfs_open(NULL,_p);
+    else
+        p = vfs_open(current->entry[dirfd],path);
+
     current->entry[fd - 2] = p;
     //printk("fd:%d %p\n",fd,current->entry[fd - 2]);
+    p->flags = flags;
     if(!p)
         return -1;
     return fd;
@@ -61,7 +67,7 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
         case SYS_read:
             return sys_read(reg->x10,(void *)reg->x11,reg->x12);
         case SYS_close:
-            return 0;
+            return sys_close(reg->x10);
         case SYS_exit:
             return sys_exit(reg->x10);
         case SYS_brk:
@@ -72,6 +78,9 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_clone(reg->x10,reg->x11,reg->x12,reg->x13,reg->x14);
         case SYS_user_task:
             sys_user_task((char *)reg->x10);
+            return 0;
+        case SYS_uname:
+            sys_uname((void *)reg->x10);
             return 0;
         default:
             return 0;
@@ -154,25 +163,57 @@ int sys_wait4(pid_t pid,int *status,int options) {
             current->chilren[i] = NULL;
             //printk("wait!\n");
             break;
-        } /*else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
+        } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
             result = current->chilren[i]->exit_code;
             kfree(current->chilren[i]);
             current->chilren[i] = NULL;
             break;
-        }*/
+        }
     }
     return result;
 }
+
+
 void sys_user_task(const char *path) {
     if(path == NULL)
         return;
-    //printk("path:%s\n",path);
+    printk("path:%s\n",path);
     task_struct *task = user_thread(path);
     current->status |= TASK_FLAG_FORK;
     current = task;
     current->epc -= 4;
     //printk("mepc:%p\n",current->epc);
 }
+
+void sys_uname(struct utsname *ptr) {
+    memcpy(ptr->sysname,"chino os",8);
+    memcpy(ptr->nodename,"chino",5);
+    memcpy(ptr->release,"0",1);
+    memcpy(ptr->version,"0.01",4);
+    memcpy(ptr->machine,"riscv64",7);
+    memcpy(ptr->domainname,"chino",5);
+}
+
+int sys_close(uint64_t fd) {
+    if(current->entry[fd]) {
+        free_dentry(current->entry[fd]);
+        current->entry[fd] = NULL;
+        return 0;
+    }
+    return -1;
+}
+
+int sys_times(struct tms *ptr) {
+    memcpy(ptr,&global_tms,sizeof(struct tms));
+    return 0;
+}
+
+int sys_sleep(uint64_t sec) {
+    usleep(sec);
+    return 0;
+}
+
+
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;

@@ -53,6 +53,6 @@ size_t vfs_read(dentry_struct *p,void *buf,size_t size) {
     return result;
 }
 
-dentry_struct *vfs_open(const char *name) {
-    return fat32_open(name);
+dentry_struct *vfs_open(dentry_struct *dir,const char *name) {
+    return fat32_open(dir,name);
 }

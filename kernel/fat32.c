@@ -15,17 +15,15 @@ size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
         s++;
     if (p->sector_count * 512 < size)
         s = p->sector_count;
-    //printk("...\n");
-    //void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
-    char buffer[66560];
-    // if (!buffer)
-    //     panic("out of memory!");
+    
+    // 读取缓冲区
+    //char buffer[65536];
+    void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
     memset(buffer,0,512*s*fs->boot.bpb_sec_per_clus);
     for(size_t i = 0;i < s;i++) {
 
         if (result >= size)
             break;
-        //printk("sector count:%d\n",p->sectorno_list[i]);
         if (disk_read(0,(uint8_t *)buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             break;
         
@@ -36,13 +34,6 @@ size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
     if (result > p->file_size && p->file_size != 0)
         result = p->file_size;
     memcpy(buf,buffer,result);
-    // if (result > size) {
-    //     memcpy(buf,buffer,size);
-    //     result = size;
-    // } else
-    //     memcpy(buf,buffer,result);
-    // kfree(buffer);
-    // kfree(buffer);
     return result;
 }
 
@@ -90,22 +81,25 @@ fat32_fs *fat32_init(void) {
         count = DEFAULT_LOAD_SECTOR;
     else
         count = fs->boot.bpb_fatsz32;
-
     fs->fat1 = kmalloc(512*count);
+    // printk("count:%d %p\n",count,fs->fat1);
     fs->start_fat_sector = mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt;
     fs->count = count;
     fs->data_sector = fs->start_fat_sector + fs->boot.bpb_fatsz32*fs->boot.bpb_num_fats;
+    // printk("read lba:%x %x\n",mbr.parts[0].lba + 1,mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt);
     if(disk_read(0,(uint8_t *)&fs->fs_info,mbr.parts[0].lba + 1,1) == RES_ERROR)
         panic("read disk error");
+
     if(disk_read(0,(uint8_t *)fs->fat1,mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt,count) == RES_ERROR)
         panic("read disk error");
-    // printk("fat:%p\n",fs->fat1);
     // for(int i = 0;i < 1024;i++) {
     //     printk("%x ",fs->fat1[i]);
     // }
-    // printk("\n");
-    // printk("write disk test\n");
-    // fat32_write(fs,"/test.txt","this is a test\n",15);
+    // char buf[512];
+    // dentry_struct *p;
+    // p = fat32_open(NULL,"/read");
+    // fat32_read(p,buf,512);
+    // printk("buf:%s\n");
     printk("fat LBA:%d,fat sector count:%d,data LBA:%d\n",fs->start_fat_sector,fs->count,fs->data_sector);
     printk("num fats:%d,fatsz32:%d\n",(uint32_t)fs->boot.bpb_num_fats,fs->boot.bpb_fatsz32);
     printk("FAT32 init..........OK\n");
@@ -230,7 +224,7 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     // 读取根目录项
     //printk("dir entry!\n");
     root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count*512);
-    //printk("root_buf:%p\n",root_buf);
+    printk("start root_buf:%p\n",root_buf);
     // printk("address:%p size:%d count:%d\n",root_buf,fs->boot.bpb_sec_per_clus*dentry->sector_count*512,dentry->sector_count);
     if (root_buf == NULL)
         panic("out of memory!");
@@ -256,7 +250,7 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     for(uint32_t count = 0;count < fs->boot.bpb_sec_per_clus*16*dentry->sector_count;count++) {
         entry = (void *)(root_buf +count*32);
         if (is_short_entry(entry)) {
-
+            // printk("short name:%s\n",entry->dir_name);
             if (name_len > 12) {
                 dname = get_entry_name((void *)(root_buf + count*32));
                 buffer = (char *)name;
@@ -327,15 +321,17 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
         }
     }
 end:
+    // printk("root_buf:%p\n",root_buf);
     kfree(root_buf);
+    // printk("kfree ok!\n");
     //printk("break\n");
     //printk("d name:%s\n",dentry_p->name);
     return dentry_p;
 }
 
-dentry_struct *fat32_open(const char *path) {
+dentry_struct *fat32_open(dentry_struct *dir,const char *path) {
     char name[256];
-    dentry_struct *entry = NULL;
+    dentry_struct *entry = dir;
     int i = 0;
     int flag = 0;
     memset(name,0,256);
@@ -374,6 +370,7 @@ dentry_struct *fat32_open(const char *path) {
     //             break;
     //     kfree(buf);
     // }
+    // printk("entry %p\n",entry);
     // if (entry != NULL)
     //     for(int i = 0;i < entry->sector_count;i++)
     //         printk("%d ",entry->sectorno_list[i]);
@@ -447,6 +444,69 @@ static void fill_short_entry(short_dir_entry *sdentry,const char *name,uint32_t 
 // static long_dir_entry *fill_long_entry(long_dir_entry *ldentry,const char *name) {
 
 // }
+short_dir_entry *find_empty_entry(dentry_struct *dentry,const char *name) {
+    size_t len = strlen(name);
+    int dir_count = 1;
+    int count;
+
+    //计算目录项的数量
+    if (len > 12)
+        dir_count += len / 13 + 1;
+    count = dir_count;
+start: ;
+    short_dir_entry *sdentry = NULL;
+    short_dir_entry *temp = kmalloc(dentry->sector_count*fs->boot.bpb_sec_per_clus*512);
+    if(!temp)
+        panic("out of memory!");
+    for(int i = 0;i < dentry->sector_count;i++)
+        if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
+            panic("read disk error");
+    for(int i = 0;i < 16*dentry->sector_count;i++) {
+        //printk("i:%d\n",i);
+        if (IS_EMPTY_DIR_ENTRY(temp + i)) {
+            sdentry = temp + i;
+            count--;
+            //printk("dentry index:%d\n",i);
+            break;
+        } else {
+            count = dir_count;
+            sdentry = NULL;
+        }
+        if (!count)
+            break;
+    }
+
+    if(!sdentry) {
+        uint32_t index;
+        index = expand_fat_index(dentry->sectorno_list[dentry->sector_count - 1]);
+        push_sectorno(dentry,index);
+        kfree(temp);
+        goto start;
+    }
+    return sdentry;
+}
+void fill_long_entry(long_dir_entry *lentry,const char *short_name,const char *name) {
+    char checksum = calc_checksum(short_name);
+    size_t len = strlen(name) / 13 + 1;
+    size_t pos = 0;
+    for(int i = 0;i < len;i++) {
+        for(int j = 0;j < 5;j++,pos++)
+            lentry->ldir_name_1[j] = name[pos];
+
+        for(int j = 0;j < 6;j++,pos++)
+            lentry->ldir_name_1[j] = name[pos];
+
+        for(int j = 0;j < 2;j++,pos++)
+            lentry->ldir_name_1[j] = name[pos];
+        lentry->ldir_ord = i;
+        lentry->ldir_attr = 0xf;
+        lentry->ldir_type = 0;
+        lentry->ldir_chksum = checksum;
+        lentry--;
+    }
+    lentry++;
+    lentry->ldir_ord |= FILE_NAME_END; 
+}
 static void alloc_dentry(dentry_struct *dentry,const char *name,uint32_t first_fat_index,uint32_t file_size) {
 // start: ;
 //     void *buf = kmalloc(dentry->sector_count*512);
@@ -534,35 +594,40 @@ static void alloc_dentry(dentry_struct *dentry,const char *name,uint32_t first_f
     // }
 // oom_error:
 //     panic("out of memory!");
-start: ;
-    short_dir_entry *sdentry = NULL;
+// start: ;
+//     short_dir_entry *sdentry = NULL;
+//         if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
+//             panic("read disk error");
+//     for(int i = 0;i < 16*dentry->sector_count;i++) {
+//         //printk("i:%d\n",i);
+//         if (IS_EMPTY_DIR_ENTRY(temp + i)) {
+//             sdentry = temp + i;
+//             //printk("dentry index:%d\n",i);
+//             break;
+//         }
+//     }
+//     if(!sdentry) {
+//         uint32_t index;
+//         index = expand_fat_index(dentry->sectorno_list[dentry->sector_count - 1]);
+//         push_sectorno(dentry,index);
+//         kfree(temp);
+//         goto start;
+//     }
+    short_dir_entry *sdentry = find_empty_entry(dentry,name);
+    if (strlen(name) < 12)
+        fill_short_entry(sdentry,name,first_fat_index,file_size);
+    else {
+        fill_short_entry(sdentry,name,first_fat_index,file_size);
+        fill_long_entry((long_dir_entry *)(sdentry - 1),sdentry->dir_name,name);
+    }
     short_dir_entry *temp = kmalloc(dentry->sector_count*fs->boot.bpb_sec_per_clus*512);
     if(!temp)
         panic("out of memory!");
     for(int i = 0;i < dentry->sector_count;i++)
-        if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            panic("read disk error");
-    for(int i = 0;i < 16*dentry->sector_count;i++) {
-        //printk("i:%d\n",i);
-        if (IS_EMPTY_DIR_ENTRY(temp + i)) {
-            sdentry = temp + i;
-            //printk("dentry index:%d\n",i);
-            break;
-        }
-    }
-    if(!sdentry) {
-        uint32_t index;
-        index = expand_fat_index(dentry->sectorno_list[dentry->sector_count - 1]);
-        push_sectorno(dentry,index);
-        kfree(temp);
-        goto start;
-    }
-
-    if (strlen(name) < 12)
-        fill_short_entry(sdentry,name,first_fat_index,file_size);
     for(int i = 0;i < dentry->sector_count;i++)
         if (disk_write(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
             panic("disk write error");
+    kfree(temp);
 }
 
 size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size) {

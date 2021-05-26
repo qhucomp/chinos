@@ -110,13 +110,13 @@ fat32_fs *fat32_init(void);
 size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size);
 typedef struct __dentry dentry_struct;
 size_t fat32_read(dentry_struct *p,void *buf,size_t size);
-dentry_struct *fat32_open(const char *path);
+dentry_struct *fat32_open(dentry_struct *dir,const char *path);
 #define FILE_NAME_END (0x40)
 #define NO_CHAR ((wchar_t)0xffff)
 #define FAT_MASK (0xfffffff)
 #define FILE_END (0xffffff8)
 #define is_short_entry(e) (!((e)->dir_attr == 0xf || (e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05))
-#define DEFAULT_LOAD_SECTOR 128
+#define DEFAULT_LOAD_SECTOR 32
 #define MAX_NAME_LEN 256
 #define EMPTY_CLUSNO (0xffffff7)
 #define IS_EMPTY_DIR_ENTRY(e) ((e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05)

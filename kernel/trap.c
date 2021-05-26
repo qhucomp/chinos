@@ -24,8 +24,8 @@ void _start_trap(regs *reg) {
             case CAUSE_MACHINE_ECALL:
                 if (!reg->x17) {
                     write_csr(mepc,current->epc);
-                    reg->x12 = 0x80200000;
-                    current->sp = 0x80200000;
+                    reg->x12 = 0x80600000;
+                    current->sp = 0x80600000;
                     current->flag &= ~TASK_FLAG_NO_RUN;
                     set_mpp(MPP_MACHINE);
                     return;

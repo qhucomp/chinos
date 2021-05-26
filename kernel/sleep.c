@@ -2,6 +2,7 @@
 #include "include/sleep.h"
 #include "include/sysctl.h"
 #include "include/riscv.h"
+#include "include/syscalls.h"
 
 int usleep(uint64_t usec)
 {
@@ -11,6 +12,11 @@ int usleep(uint64_t usec)
     {
         if(read_cycle() - cycle >= nop_all)
             break;
+    }
+    global_tms.tms_utime += usec;
+    if(global_tms.tms_utime >= 1000) {
+        global_tms.tms_stime += global_tms.tms_utime/1000;
+        global_tms.tms_utime -= (usec/1000)*1000;
     }
     return 0;
 }

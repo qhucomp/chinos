@@ -42,7 +42,7 @@ void _m_mode_start(void) {
 }
 void kernel_init(void) {
     write_csr(mtvec,_trap_entry);
-    //_write_mtval((uint64_t)_trap_entry);
+    // _write_mtval((uint64_t)_trap_entry);
     // 使用6m以上的内存
     sysctl_pll_set_freq(SYSCTL_PLL1,800000000UL);
     sysctl_pll_enable(SYSCTL_PLL1);
@@ -50,6 +50,7 @@ void kernel_init(void) {
     init_kmalloc();
     plic_init();
     disk_init();
+    printk("disk init...OK\n");
     fat32_init();
     //register_syscall();
     init_scheduler();

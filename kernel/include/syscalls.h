@@ -35,13 +35,29 @@
 #define SYS_wait4           260
 #define SYS_start_thread    32
 #define SYS_user_task       233
-#define AT_FDCWD
+#define AT_FDCWD (-100)
 extern char *user_heap_start;
 extern char *user_heap_end;
 
 typedef uintptr_t (*syscall_func)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t);
 extern syscall_func syscalls[300];
+struct utsname {
+	char sysname[65];
+	char nodename[65];
+	char release[65];
+	char version[65];
+	char machine[65];
+	char domainname[65];
+};
 
+struct tms              
+{                     
+	long tms_utime;  
+	long tms_stime;  
+	long tms_cutime; 
+	long tms_cstime; 
+};
+extern struct tms global_tms;
 /**
  * @brief 处理系统调用
  * 
@@ -60,4 +76,6 @@ void register_syscall(void);
 int sys_wait4(pid_t pid,int *status,int options);
 int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid);
 int sys_exit(int code);
+void sys_uname(struct utsname *ptr);
+int sys_close(uint64_t fd);	
 #endif

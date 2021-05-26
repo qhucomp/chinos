@@ -9,17 +9,18 @@
 #include "include/syscalls.h"
 #include "include/ecall.h"
 void user_exit(void) {
-    printk("exit!\n");
     ECALL(SYS_exit,0,0,0,0,0,0);
 }
 task_struct *user_thread(const char *name) {
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
-    dentry_struct *p = vfs_open(name);
-    char *elf = kmalloc(p->file_size);
+    dentry_struct *p = vfs_open(NULL,name);
+    // char *elf = kmalloc(p->file_size);
+    char elf[65536];
     memset(elf,0,p->file_size);
     printk("read ok!\n");
     vfs_read(p,elf,p->file_size);
+    printk("elf ptr:%p p->file_size:%d\n",elf,p->file_size);
     size_t size = 0;
     uint64_t offset;
     // 构建进程在内存中的镜像
@@ -33,11 +34,8 @@ task_struct *user_thread(const char *name) {
     size += copy_section(elf,user_space,".srodata",NULL);
     task->flag |= TASK_FLAG_USER_THREAD;
     task->task_reg.x11 = task->sp = (uintptr_t)user_space + USER_HEAP_SIZE;
-    task->brk_base = 0;//(uintptr_t)user_space;
+    task->brk_base = 0;
     add_task(task);
-    // if (!strncmp("/fork",name,5))
-    //     for(int i = 0;i < 8192;i++)
-    //         printk("%x ",*(uint8_t *)(user_space + i));
     return task;
 }
 

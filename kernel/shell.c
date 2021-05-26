@@ -35,12 +35,12 @@ int user_shell(void) {
     // if (task_count == 0) {
     //     task_count++;
         int status;
-
+        printk("run read\n");
         ECALL(SYS_user_task,run_list[0],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
-        ECALL(SYS_user_task,run_list[1],0,0,0,0,0);
-        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+        // ECALL(SYS_user_task,run_list[1],0,0,0,0,0);
+        // ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
         ECALL(SYS_user_task,run_list[2],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
@@ -48,7 +48,9 @@ int user_shell(void) {
         printk("wait\n");
         ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
-
+        printk("fuck!\n");
+        ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
+        ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
         // ECALL(SYS_wait4,-1,&status,0,0,0,0);
         //printk("read\n");

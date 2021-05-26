@@ -650,10 +650,10 @@ static void sd_write_data_dma(uint8_t const *data_buff, uint32_t length) {
 	spi_send_data_standard_dma(DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
 }
 
-static void sd_read_data_dma(uint8_t *data_buff, uint32_t length) {
-    spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
-	spi_receive_data_standard_dma(-1, DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
-}
+// static void sd_read_data_dma(uint8_t *data_buff, uint32_t length) {
+//     spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
+// 	spi_receive_data_standard_dma(-1, DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
+// }
 
 /*
  * @brief  Send 5 bytes command to the SD card.
@@ -974,7 +974,7 @@ uint8_t sd_read_sector(uint8_t *buf, uint32_t sectorno) {
 		printk("sdcard: timeout waiting for reading");
         return 1;
 	}
-	sd_read_data_dma(buf, BSIZE);
+	sd_read_data(buf, BSIZE);
 	sd_read_data(dummy_crc, 2);
 
 	sd_end_cmd();
