@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "vfs.h"
+#define DEFAULT_LOAD_SECTOR 32
 #undef wchar_t
 #define wchar_t uint16_t
 typedef struct __boot_sector {
@@ -81,7 +82,7 @@ typedef struct __directory_entry {
 typedef struct __fat32 {
     boot_sector boot;
     FSInfo fs_info;
-    uint32_t *fat1;
+    uint32_t fat1[512*DEFAULT_LOAD_SECTOR];
     uint32_t temp_fat[512];    //缓存4个扇区
     uint32_t fat1_start_sector;
     uint32_t start_fat_sector;
@@ -116,7 +117,6 @@ dentry_struct *fat32_open(dentry_struct *dir,const char *path);
 #define FAT_MASK (0xfffffff)
 #define FILE_END (0xffffff8)
 #define is_short_entry(e) (!((e)->dir_attr == 0xf || (e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05))
-#define DEFAULT_LOAD_SECTOR 8
 #define MAX_NAME_LEN 256
 #define EMPTY_CLUSNO (0xffffff7)
 #define IS_EMPTY_DIR_ENTRY(e) ((e)->dir_name[0] == 0xe5 || (e)->dir_name[0] == 0x00 || (e)->dir_name[0] == 0x05)

@@ -81,7 +81,7 @@ fat32_fs *fat32_init(void) {
         count = DEFAULT_LOAD_SECTOR;
     else
         count = fs->boot.bpb_fatsz32;
-    fs->fat1 = kmalloc(512*count);
+    //fs->fat1 = kmalloc(512*count);
     // printk("count:%d %p\n",count,fs->fat1);
     fs->start_fat_sector = mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt;
     fs->count = count;
@@ -157,10 +157,10 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     dentry_struct *dentry_p = NULL;
     int root_size = 1;
     short_dir_entry *entry = NULL;
-    for(int i = 0;i < 1024;i++) {
-        printk("%x ",fs->fat1[i]);
-    }
-    printk("\n");
+    // for(int i = 0;i < 1024;i++) {
+    //     printk("%x ",fs->fat1[i]);
+    // }
+    // printk("\n");
     if (dentry == NULL) {
         // 加载根目录下的所有目录项
         int next = fs->boot.bpb_root_clus;
@@ -168,10 +168,10 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
         push_sectorno(dentry,clusno_to_sectorno(fs,next));
 
         next = fs->fat1[next];
-        int count = 0;
+        // int count = 0;
         if (next < FILE_END) {
             while (1) {
-                printk("count:%d\n",count);
+                // printk("count:%d\n",count);
                 if (next < fs->count*128) {
                     // 根目录FAT索引未超过缓存好的FAT的情况
                     push_sectorno(dentry,clusno_to_sectorno(fs,next));
@@ -220,9 +220,9 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     printk("read root\n");
     if (name == NULL)
         return dentry;
-    for(int i = 0;i < 1024;i++) {
-        printk("%x ",fs->fat1[i]);
-    }
+    // for(int i = 0;i < 1024;i++) {
+    //     printk("%x ",fs->fat1[i]);
+    // }
     // 读取根目录项
     //printk("dir entry!\n");
     // root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count*512);
@@ -245,10 +245,10 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     char *buffer;
     int max_len = 0;
     // 搜索文件
-    printk("fat:%p\n",fs->fat1);
-    for(int i = 0;i < 1024;i++) {
-        printk("%x ",fs->fat1[i]);
-    }
+    // printk("fat:%p\n",fs->fat1);
+    // for(int i = 0;i < 1024;i++) {
+    //     printk("%x ",fs->fat1[i]);
+    // }
     // printk("count:%d\n",fs->boot.bpb_sec_per_clus*16*dentry->sector_count);
     for(uint32_t count = 0;count < fs->boot.bpb_sec_per_clus*16*dentry->sector_count;count++) {
         entry = (void *)(root_buf + count*32);
@@ -498,10 +498,10 @@ void fill_long_entry(long_dir_entry *lentry,const char *short_name,const char *n
             lentry->ldir_name_1[j] = name[pos];
 
         for(int j = 0;j < 6;j++,pos++)
-            lentry->ldir_name_1[j] = name[pos];
+            lentry->ldir_name_2[j] = name[pos];
 
         for(int j = 0;j < 2;j++,pos++)
-            lentry->ldir_name_1[j] = name[pos];
+            lentry->ldir_name_3[j] = name[pos];
         lentry->ldir_ord = i;
         lentry->ldir_attr = 0xf;
         lentry->ldir_type = 0;
