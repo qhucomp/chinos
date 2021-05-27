@@ -208,7 +208,7 @@ int sys_close(uint64_t fd) {
         current->entry[fd] = NULL;
         return 0;
     }
-    return -1;
+    return 0;
 }
 
 int sys_times(struct tms *ptr) {
