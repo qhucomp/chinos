@@ -126,7 +126,6 @@ void init_task(pid_t pid,task_struct *task,task_struct *parent) {
     if(!task->chilren)
         panic("out of memory!");
     memset(task->chilren,0,8192);
-    printk("chilren ptr:%p\n",task->chilren);
     task->chilren_count = 8192/8;
     for(uint32_t i = 0;i < task->chilren_count;i++)  {
         // printk("ok! %p\n",task->chilren[i]);
