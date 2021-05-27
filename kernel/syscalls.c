@@ -178,7 +178,6 @@ int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
 }
 
 int sys_wait4(pid_t pid,int *status,int options) {
-    int result = 0;
     //printk("wait1!\n");
     //printk("wait %d\n",pid == -1);
     for(int i = 0;i < current->chilren_len;i++) {
@@ -190,13 +189,13 @@ int sys_wait4(pid_t pid,int *status,int options) {
             //printk("wait!\n");
             break;
         } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
-            result = current->chilren[i]->exit_code;
+            //result = current->chilren[i]->exit_code;
             kfree(current->chilren[i]);
             current->chilren[i] = NULL;
             break;
         }
     }
-    return result;
+    return 0;
 }
 
 
@@ -269,7 +268,7 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
     //  printk("size:%d %p\n",current->entry[fd - 2]->file_size,current->entry[fd - 2]);
      stat->st_size = current->entry[fd - 2]->file_size;
      //printk("st_size:%d\n",stat->st_size);
-     return 0;
+     return current->entry[fd - 2]->file_size;
  }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
