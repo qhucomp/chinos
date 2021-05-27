@@ -11,6 +11,9 @@ typedef struct __dentry {
     int type;
     uint64_t flags;
     char *name;
+    void *mmap_area;
+    size_t offset;
+    size_t mmap_len;
 } dentry_struct;
 size_t vfs_read(dentry_struct *p,void *buf,size_t size);
 dentry_struct *vfs_open(dentry_struct *dir,const char *name);

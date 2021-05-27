@@ -84,6 +84,8 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return 0;
         case SYS_getpid:
             return sys_getpid();
+        case SYS_nanosleep:
+            return sys_nanosleep((void *)reg->x10);
         case SYS_getppid:
             return sys_getppid();
         default:
@@ -131,23 +133,25 @@ int sys_exit(int code) {
     return current->task_reg.x10;
 }
 
-int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
+int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
     if (current->pid == 0)
         return 0;
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
     task->task_reg = current->task_reg;
     memcpy(user_space,get_user_space(current->pid),USER_HEAP_SIZE);
-    uint64_t offset = current->epc - (uint64_t)get_user_space(current->pid);
-    //printk("fork!\n");
-    //printk("pid:%d offset:%p %p\n",current->pid,current->epc,(uint64_t)get_user_space(current->pid));
-    task->epc = (uintptr_t)user_space + offset;
+    uint64_t offset;
+    if (flags == SIGCHLD) {
+        offset = current->epc - (uint64_t)get_user_space(current->pid);
+        task->epc = (uintptr_t)user_space + offset;
+    } else {
+        task->epc = flags;
+    }
+
     offset = current->task_reg.x2 - (uint64_t)get_user_space(current->pid);
     task->sp = task->task_reg.x11 = (uintptr_t)user_space + offset;
-
     task->task_reg.x10 = 0;
     current->task_reg.x10 = task->pid;
-    //printk("fork pid:%d\n",task->pid);
     task->status = current->status;
     current->status |= TASK_FLAG_FORK;
     add_task(task);
@@ -212,18 +216,39 @@ int sys_times(struct tms *ptr) {
     return 0;
 }
 
-int sys_sleep(struct timespec *sec) {
-    usleep(sec->tv_sec*1000 + sec->tv_nsec/1000000);
+int sys_nanosleep(struct timespec *sec) {
+    usleep(sec->tv_sec*1000000 + sec->tv_nsec);
     return 0;
 }
 
 pid_t sys_getpid(void) {
     return current->pid;
 }
+
 pid_t sys_getppid(void) {
     return current->parent->pid;
 }
 
+int sys_gettimeofday(struct timespec *sec) {
+    sec->tv_sec = global_tms.tms_utime / 1000;
+    sec->tv_nsec = global_tms.tms_utime - sec->tv_sec*1000;
+    return 0;
+}
+
+void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
+    if (!current->entry[fd])
+        return (void *)-1;
+    if(!start)
+        current->entry[fd]->mmap_area = kmalloc(len);
+    else
+        current->entry[fd]->mmap_area = start;
+    current->entry[fd]->mmap_len = len;
+    current->entry[fd]->offset = offset;
+
+    memset(current->entry[fd]->mmap_area,0,8192);
+    return current->entry[fd]->mmap_area;
+}
+ 
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;

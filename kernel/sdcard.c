@@ -645,10 +645,10 @@ static void sd_read_data(uint8_t *data_buff, uint32_t length) {
     spi_receive_data_standard(SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
 }
 
-static void sd_write_data_dma(uint8_t const *data_buff, uint32_t length) {
-    spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
-	spi_send_data_standard_dma(DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
-}
+// static void sd_write_data_dma(uint8_t const *data_buff, uint32_t length) {
+//     spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
+// 	spi_send_data_standard_dma(DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
+// }
 
 // static void sd_read_data_dma(uint8_t *data_buff, uint32_t length) {
 //     spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
@@ -1010,7 +1010,7 @@ uint8_t sd_write_sector(uint8_t *buf, uint32_t sectorno) {
 
 	// sending data to be written 
 	sd_write_data(&START_BLOCK_TOKEN, 1);
-	sd_write_data_dma(buf, BSIZE);
+	sd_write_data(buf, BSIZE);
 	sd_write_data(dummy_crc, 2);
 
 	// waiting for sdcard to finish programming 

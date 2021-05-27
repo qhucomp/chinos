@@ -14,9 +14,6 @@ int usleep(uint64_t usec)
             break;
     }
     global_tms.tms_utime += usec;
-    if(global_tms.tms_utime >= 1000) {
-        global_tms.tms_stime += global_tms.tms_utime/1000;
-        global_tms.tms_utime -= (usec/1000)*1000;
-    }
+    global_tms.tms_stime += usec;
     return 0;
 }

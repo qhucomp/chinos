@@ -7,6 +7,7 @@
 #include "include/vfs.h"
 #include "include/string.h"
 #include "include/sdcard.h"
+fat32_fs fat32_vfs;
 fat32_fs *fs;
 char root_buf[65536];
 size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
@@ -70,7 +71,8 @@ static char *get_entry_name(long_dir_entry *dentry) {
 dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name);
 fat32_fs *fat32_init(void) {
     mbr_struct mbr;
-    fs =  kmalloc(sizeof(fat32_fs));
+    fs = &fat32_vfs;
+    //fs =  kmalloc(sizeof(fat32_fs));
     if(disk_read(0,(uint8_t *)&mbr,0,1) == RES_ERROR)
         panic("read disk error");
     if(disk_read(0,(uint8_t *)&fs->boot,mbr.parts[0].lba,1) == RES_ERROR)
@@ -239,7 +241,7 @@ dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
     }
     char short_name_buffer[12];
     get_short_name(name,short_name_buffer);
-    printk("short name:%s\n",short_name_buffer);
+    // printk("short name:%s\n",short_name_buffer);
     size_t name_len = strlen(name);
     char *dname;
     char *buffer;

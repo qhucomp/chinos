@@ -82,7 +82,7 @@ typedef struct __directory_entry {
 typedef struct __fat32 {
     boot_sector boot;
     FSInfo fs_info;
-    uint32_t fat1[512*DEFAULT_LOAD_SECTOR];
+    uint32_t fat1[128*DEFAULT_LOAD_SECTOR];
     uint32_t temp_fat[512];    //缓存4个扇区
     uint32_t fat1_start_sector;
     uint32_t start_fat_sector;

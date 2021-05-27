@@ -42,11 +42,9 @@ static void clear_pid(pid_t pid) {
 void delete_task(task_struct *task) {
     //RR调度算法
     //sysctl_disable_irq();
-
     //释放子进程
     // for(uint32_t i = 0;i < task->chilren_count;i++)  {
-    //     if (task->chilren[i]) {
-    //         printk("ok! %p\n",task->chilren[i]);
+    //     if (task->chilren[i] && task->parent->pid == 0) {
     //         delete_task(task->chilren[i]);
     //         kfree(task->chilren[i]);
     //     }
@@ -127,12 +125,13 @@ void init_task(pid_t pid,task_struct *task,task_struct *parent) {
     task->chilren = kmalloc(sizeof(task_struct *) * 8);
     if(!task->chilren)
         panic("out of memory!");
-    memset(task->chilren,0,sizeof(task_struct *) * 8);
-    task->chilren_count = 8;
+    memset(task->chilren,0,8192);
+    printk("chilren ptr:%p\n",task->chilren);
+    task->chilren_count = 8192/8;
     for(uint32_t i = 0;i < task->chilren_count;i++)  {
         // printk("ok! %p\n",task->chilren[i]);
     }
-    task->chilren_len = 8;
+    task->chilren_len = 8192/8;
 }
 task_struct *alloc_task(task_struct *parent) {
     pid_t pid = get_new_pid();

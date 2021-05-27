@@ -36,6 +36,7 @@
 #define SYS_start_thread    32
 #define SYS_user_task       233
 #define AT_FDCWD (-100)
+#define SIGCHLD   17
 extern char *user_heap_start;
 extern char *user_heap_end;
 
@@ -57,6 +58,7 @@ struct tms
 	long tms_cutime; 
 	long tms_cstime; 
 };
+
 // struct timespec {
 // 	time_t tv_sec;        /* 秒 */
 // 	long   tv_nsec;       /* 纳秒, 范围在0~999999999 */
@@ -79,10 +81,11 @@ intptr_t sys_brk(size_t pos);
 //void sys_exit(int code);
 void register_syscall(void);
 int sys_wait4(pid_t pid,int *status,int options);
-int sys_clone(int flags,uintptr_t stack,pid_t ptid,int tls,int ctid);
+int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid);
 int sys_exit(int code);
 void sys_uname(struct utsname *ptr);
 int sys_close(uint64_t fd);	
 pid_t sys_getpid(void);
 pid_t sys_getppid(void);
+int sys_nanosleep(struct timespec *sec);
 #endif
