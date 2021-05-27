@@ -180,21 +180,21 @@ int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
 int sys_wait4(pid_t pid,int *status,int options) {
     //printk("wait1!\n");
     //printk("wait %d\n",pid == -1);
-    for(int i = 0;i < current->chilren_len;i++) {
-        //printk("current->chilren[%d]=%p\n",i,current->chilren[i]);
-        if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && pid == -1) {
-            *status = current->chilren[i]->exit_code;
-            kfree(current->chilren[i]);
-            current->chilren[i] = NULL;
-            //printk("wait!\n");
-            break;
-        } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
-            //result = current->chilren[i]->exit_code;
-            kfree(current->chilren[i]);
-            current->chilren[i] = NULL;
-            break;
-        }
-    }
+    // for(int i = 0;i < current->chilren_len;i++) {
+    //     //printk("current->chilren[%d]=%p\n",i,current->chilren[i]);
+    //     if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && pid == -1) {
+    //         *status = current->chilren[i]->exit_code;
+    //         kfree(current->chilren[i]);
+    //         current->chilren[i] = NULL;
+    //         //printk("wait!\n");
+    //         break;
+    //     } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
+    //         //result = current->chilren[i]->exit_code;
+    //         kfree(current->chilren[i]);
+    //         current->chilren[i] = NULL;
+    //         break;
+    //     }
+    // }
     return 0;
 }
 
