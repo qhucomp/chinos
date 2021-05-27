@@ -45,9 +45,14 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
         p = vfs_open(NULL,_p);
     else
         p = vfs_open(current->entry[dirfd],path);
-
+    if (flags & O_CREATE) {
+        p = create_dentry();
+        // p->name = kmalloc(256);
+        // memcpy(p->name,path,strlen(path));
+        // printk("O_CREATE\n");
+    }
     current->entry[fd - 2] = p;
-    //printk("fd:%d %p\n",fd,current->entry[fd - 2]);
+    // printk("fd:%d %p\n",fd,current->entry[fd - 2]);
     p->flags = flags;
     if(!p)
         return -1;
@@ -88,6 +93,12 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_nanosleep((void *)reg->x10);
         case SYS_getppid:
             return sys_getppid();
+        case SYS_mmap:
+            return (intptr_t)sys_mmap((void *)reg->x10,reg->x11,reg->x12,reg->x13,reg->x14,reg->x15);
+        case SYS_munmap:
+            return 0;
+        case SYS_fstat:
+            return sys_fstat(reg->x10,(void *)reg->x11);
         default:
             return 0;
     }
@@ -102,6 +113,11 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
         for(size_t i = 0;i < count;i++,result++)
             putchar(((char *)buf)[i]);
         goto end;
+    } else {
+        memcpy(current->entry[fd - 2]->buffer,buf,count);
+        // printk("count:%d %s %p %d %d\n",count,buf,current->entry[fd - 2],fd,current->entry[fd - 2]->file_size);
+        if (current->entry[fd - 2]->file_size < count)
+            current->entry[fd - 2]->file_size = count;
     }
 end: ;
     return result;
@@ -141,11 +157,13 @@ int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
     task->task_reg = current->task_reg;
     memcpy(user_space,get_user_space(current->pid),USER_HEAP_SIZE);
     uint64_t offset;
+    // printk("flags:%p\n",flags);
     if (flags == SIGCHLD) {
         offset = current->epc - (uint64_t)get_user_space(current->pid);
         task->epc = (uintptr_t)user_space + offset;
     } else {
-        task->epc = flags;
+        // printk("function address:%p\n",flags);
+        task->epc = (uintptr_t)user_space + flags;
     }
 
     offset = current->task_reg.x2 - (uint64_t)get_user_space(current->pid);
@@ -236,19 +254,23 @@ int sys_gettimeofday(struct timespec *sec) {
 }
 
 void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
-    if (!current->entry[fd])
+    if (!current->entry[fd - 2])
         return (void *)-1;
-    if(!start)
-        current->entry[fd]->mmap_area = kmalloc(len);
-    else
-        current->entry[fd]->mmap_area = start;
-    current->entry[fd]->mmap_len = len;
-    current->entry[fd]->offset = offset;
+    memset(current->entry[fd - 2]->mmap_area,0,1024);
+    current->entry[fd - 2]->mmap_len = len;
+    current->entry[fd - 2]->offset = offset;
 
-    memset(current->entry[fd]->mmap_area,0,8192);
-    return current->entry[fd]->mmap_area;
+    memcpy(current->entry[fd - 2]->mmap_area,current->entry[fd -2]->buffer,current->entry[fd - 2]->file_size);
+    return current->entry[fd - 2]->mmap_area;
 }
  
+ int sys_fstat(int fd,struct kstat *stat) {
+     //memset(stat,0,sizeof(struct kstat));
+    //  printk("size:%d %p\n",current->entry[fd - 2]->file_size,current->entry[fd - 2]);
+     stat->st_size = current->entry[fd - 2]->file_size;
+     //printk("st_size:%d\n",stat->st_size);
+     return 0;
+ }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;

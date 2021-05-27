@@ -11,7 +11,7 @@
 void user_exit(void) {
     ECALL(SYS_exit,0,0,0,0,0,0);
 }
-char elf[65536];
+char elf[72704];
 task_struct *user_thread(const char *name) {
     task_struct *task = alloc_task(current);
     void *user_space = user_malloc(task->pid);
@@ -20,6 +20,7 @@ task_struct *user_thread(const char *name) {
     // p = vfs_open(NULL,name);
     // char *elf = kmalloc(p->file_size);
     //printk("open ok\n");
+    printk("file size:%d\n",p->file_size);
     if (!p->file_size)
         panic("read zero");
     memset(elf,0,p->file_size);
@@ -48,6 +49,6 @@ task_struct *user_thread(const char *name) {
 }
 
 void *user_malloc(pid_t pid) {
-    uintptr_t user_process_address = 0x80300000 + 0x1000;
+    uintptr_t user_process_address = 0x80400000 + 0x1000;
     return (void *)(user_process_address + (pid - 1) * USER_HEAP_SIZE);
 }

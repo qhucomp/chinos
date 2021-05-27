@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "vfs.h"
-#define DEFAULT_LOAD_SECTOR 32
+#define DEFAULT_LOAD_SECTOR 48
 #undef wchar_t
 #define wchar_t uint16_t
 typedef struct __boot_sector {

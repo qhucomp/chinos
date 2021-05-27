@@ -11,9 +11,10 @@ typedef struct __dentry {
     int type;
     uint64_t flags;
     char *name;
-    void *mmap_area;
+    char mmap_area[1024];
     size_t offset;
     size_t mmap_len;
+    char buffer[1024];
 } dentry_struct;
 size_t vfs_read(dentry_struct *p,void *buf,size_t size);
 dentry_struct *vfs_open(dentry_struct *dir,const char *name);
@@ -23,4 +24,5 @@ void push_sectorno(dentry_struct *dentry,uint32_t sectorno);
 void free_dentry(dentry_struct *ptr);
 #define DEFAULT_SECTOR_LIST_SIZE 128
 #define O_DIRECTORY 0x0200000
+#define O_CREATE 0x40
 #endif

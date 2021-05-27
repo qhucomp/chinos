@@ -1,7 +1,7 @@
 #ifndef __KALLOC_H
 #define __KALLOC_H
 #include <stdint.h>
-#define PHYSTOP 0x80300000
+#define PHYSTOP 0x80400000
 #define PGSIZE 8192
 #define PGSHIFT 12
 
