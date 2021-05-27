@@ -27,8 +27,8 @@ int user_shell(void) {
         ECALL(SYS_user_task,run_list[9],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
-        ECALL(SYS_user_task,run_list[20],0,0,0,0,0);
-        ECALL(SYS_wait4,-1,&status,0,0,0,0);
+        // ECALL(SYS_user_task,run_list[20],0,0,0,0,0);
+        // ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
         ECALL(SYS_user_task,run_list[17],0,0,0,0,0);
         ECALL(SYS_wait4,-1,&status,0,0,0,0);
