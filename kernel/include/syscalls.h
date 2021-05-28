@@ -112,4 +112,5 @@ pid_t sys_getppid(void);
 int sys_nanosleep(struct timespec *sec);
 void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset);
 int sys_fstat(int fd,struct kstat *stat);
+int sys_dup(int fd);
 #endif

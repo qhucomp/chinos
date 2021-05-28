@@ -99,6 +99,8 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return 0;
         case SYS_fstat:
             return sys_fstat(reg->x10,(void *)reg->x11);
+        case SYS_dup:
+            return sys_dup(reg->x10);
         default:
             return 0;
     }
@@ -114,6 +116,8 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
             putchar(((char *)buf)[i]);
         goto end;
     } else {
+        if (!current->entry[fd - 2])
+            return 0;
         memcpy(current->entry[fd - 2]->buffer,buf,count);
         // printk("count:%d %s %p %d %d\n",count,buf,current->entry[fd - 2],fd,current->entry[fd - 2]->file_size);
         if (current->entry[fd - 2]->file_size < count)
@@ -269,6 +273,9 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
      stat->st_size = current->entry[fd - 2]->file_size;
 
      return 0;
+ }
+ int sys_dup(int fd) {
+     return get_new_fd();
  }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
