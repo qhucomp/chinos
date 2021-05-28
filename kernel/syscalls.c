@@ -264,11 +264,11 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
 }
  
  int sys_fstat(int fd,struct kstat *stat) {
-     //memset(stat,0,sizeof(struct kstat));
-    //  printk("size:%d %p\n",current->entry[fd - 2]->file_size,current->entry[fd - 2]);
+     if (!current->entry[fd - 2])
+        return -1;
      stat->st_size = current->entry[fd - 2]->file_size;
-     //printk("st_size:%d\n",stat->st_size);
-     return current->entry[fd - 2]->file_size;
+
+     return 0;
  }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
