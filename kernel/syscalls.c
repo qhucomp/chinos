@@ -101,6 +101,8 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_fstat(reg->x10,(void *)reg->x11);
         case SYS_dup:
             return sys_dup(reg->x10);
+        case SYS_getcwd:
+            return reg->x10;
         default:
             return 0;
     }

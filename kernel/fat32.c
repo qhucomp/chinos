@@ -10,6 +10,7 @@
 fat32_fs fat32_vfs;
 fat32_fs *fs;
 char root_buf[65536];
+char buffer[65536];
 size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
     size_t result = 0;
     size_t s = size / (512 * fs->boot.bpb_sec_per_clus);
@@ -19,7 +20,6 @@ size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
         s = p->sector_count;
     
     // 读取缓冲区
-    char buffer[65536];
     //void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
     memset(buffer,0,512*s*fs->boot.bpb_sec_per_clus);
     for(size_t i = 0;i < s;i++) {
