@@ -32,12 +32,9 @@ ssize_t sys_read(int64_t fd,void *buf,size_t count) {
 
 int sys_openat(int64_t dirfd,const char *path,int flags) {
     int fd = get_new_fd();
-    char *_p;
+    char _p[256];
     size_t len = strlen(path) + strlen(current->work_dir) + 1;
-    _p = kmalloc(len);
-    if(!_p)
-        panic("out of memory");
-    memset(_p,0,len);
+    memset(_p,0,256);
     strncat(_p,current->work_dir,len);
     strncat(_p,path,len);
     dentry_struct *p;
