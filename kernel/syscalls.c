@@ -250,7 +250,7 @@ pid_t sys_getpid(void) {
 }
 
 pid_t sys_getppid(void) {
-    return current->parent->pid;
+    return 1;
 }
 
 int sys_gettimeofday(struct timespec *sec) {
