@@ -145,14 +145,15 @@ int sys_exit(int code) {
     //         return current->task_reg.x10;
     //     }
     // }
+    pid_t pid = current->pid;
     current = current->parent;
     //printk("pid:%d %p\n",current->pid,current->epc);
     // if (current->pid == 0)
     //     current->epc = (uintptr_t)user_shell - 4;
     //printk("pid:%d ret:%d\n",current->pid,current->task_reg.x10);
-    current->task_reg.x10 = current->pid;
+    current->task_reg.x10 = pid;
     current->status &= ~TASK_FLAG_FORK;
-    return current->task_reg.x10;
+    return pid;
 }
 
 int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
