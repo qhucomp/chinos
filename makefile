@@ -45,7 +45,7 @@ CC := $(prefix)gcc
 LD := $(prefix)ld
 OBJCOPY := $(prefix)objcopy
 OBJDUMP := $(prefix)objdump
-CFLAGS := -mcmodel=medany -Wall -Werror -O0 -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
+CFLAGS := -mcmodel=medany -Wall -Werror -O1 -fno-omit-frame-pointer -MD -fno-common -mno-relax -fno-stack-protector -nostdlib -ffreestanding
 lds := kernel/k210.lds
 DD := $(command_path)dd
 all: $(obj)
