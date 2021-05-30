@@ -185,13 +185,14 @@ int sys_wait4(pid_t pid,int *status,int options) {
     int result = 0;
     for(int i = 0;i < current->chilren_len;i++) {
         if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && pid == -1) {
-            *status = current->chilren[i]->exit_code;
+            *status = current->chilren[i]->exit_code << 8;
             result = current->chilren[i]->pid;
             //printk("wait pid:%d\n",result);
             kfree(current->chilren[i]);
             current->chilren[i] = NULL;
             break;
         } else if (current->chilren[i] && current->chilren[i]->status == TASK_DIE && current->chilren[i]->pid == pid) {
+            *status = current->chilren[i]->exit_code << 8;
             result = current->chilren[i]->pid;
             kfree(current->chilren[i]);
             current->chilren[i] = NULL;

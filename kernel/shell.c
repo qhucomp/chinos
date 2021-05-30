@@ -11,7 +11,7 @@ int user_shell(void) {
                                 "/mount","/open","/pipe","/test_echo","/times","/uname",
                                 "/wait","/yield_B","/chdir","/close","/dup2","/exit",
                                 "/fstat","/getdents","/mkdir_","/openat","/sleep",
-                                "/umount","/unlink","/getppid"};
+                                "/umount","/unlink","/getppid","/waitpid"};
         
     int status;
     printk("start test\n");
@@ -79,6 +79,9 @@ int user_shell(void) {
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
     ECALL(SYS_user_task,run_list[29],0,0,0,0,0);
+    ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+    ECALL(SYS_user_task,run_list[31],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
         printk("\nend test\n");
     while(1);

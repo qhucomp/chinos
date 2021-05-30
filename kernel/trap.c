@@ -47,10 +47,10 @@ void _start_trap(regs *reg) {
             //     printk("instruction:%p\n",*((char *)read_csr(mepc)));
             //     write_csr(mepc,0x80300000);
             //     break;
-            case CAUSE_ILLEGAL_INSTRUCTION:
-                printk("illegal mepc:%p\n",read_csr(mepc));
-                // write_csr(mepc,0x80200000 + 0x1000 + 0x1000);
-                break;
+            // case CAUSE_ILLEGAL_INSTRUCTION:
+            //     printk("illegal mepc:%p\n",read_csr(mepc));
+            //     // write_csr(mepc,0x80200000 + 0x1000 + 0x1000);
+            //     break;
             default:
                 printk("epc:%p pid:%d\n",read_csr(mepc),current->pid);
                 panic("Exception!");
