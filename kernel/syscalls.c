@@ -224,12 +224,12 @@ int sys_wait4(pid_t pid,int *status,int options) {
 void sys_user_task(const char *path) {
     if(path == NULL)
         return;
-    printk("path:%s\n",path);
+    printk("\n\npath:%s\n\n",path);
     task_struct *task = user_thread(path);
     current->status |= TASK_FLAG_FORK;
     current = task;
     current->epc -= 4;
-    printk("mepc:%p\n",current->epc);
+    printk("\n\nmepc:%p\n\n",current->epc);
 }
 
 void sys_uname(struct utsname *ptr) {
@@ -289,7 +289,7 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
      if (!current->entry[fd - 2])
         return -1;
      stat->st_size = current->entry[fd - 2]->file_size;
-
+    // memset(stat,1,sizeof(struct kstat));
      return 0;
  }
  int sys_dup(int fd) {
