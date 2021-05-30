@@ -96,7 +96,10 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
         case SYS_dup:
             return sys_dup(reg->x10);
         case SYS_getcwd:
+            memcpy((char *)reg->x10,current->work_dir,strlen(current->work_dir));
             return reg->x10;
+        case SYS_chdir:
+            return sys_chdir((char *)reg->x10);
         default:
             return 0;
     }
@@ -274,6 +277,10 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
  }
  int sys_dup(int fd) {
      return get_new_fd();
+ }
+ int sys_chdir(char *path) {
+     memcpy(current->work_dir,path,strlen(path));
+     return 0;
  }
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
