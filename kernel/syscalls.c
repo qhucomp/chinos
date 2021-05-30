@@ -11,6 +11,8 @@
 #include "include/sleep.h"
 syscall_func syscalls[300];
 struct tms global_tms;
+char pipe_buffer[1024];
+int read_point;
 static int get_new_fd(void) {
         for(int j = 0;j < 32;j++)
             if (!(current->fd_bitmap & (1U << j))) {
@@ -22,10 +24,15 @@ static int get_new_fd(void) {
 void sys_user_task(const char *path);
 ssize_t sys_read(int64_t fd,void *buf,size_t count) {
     ssize_t result = 0;
-    //printk("syscall read %d %p\n",fd,current->entry[fd - 2]);
     if (current->entry[fd - 2]) {
-        //printk("ok\n");
         result = vfs_read(current->entry[fd - 2],buf,count);
+    } else {
+        int len = strlen(pipe_buffer);
+        if(read_point == len)
+            return 0;
+        memcpy(buf,pipe_buffer + read_point,count);
+        read_point++;
+        result = count;
     }
     return result;
 }
@@ -100,11 +107,12 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return reg->x10;
         case SYS_chdir:
             return sys_chdir((char *)reg->x10);
+        case SYS_pipe2:
+            return sys_pipe((int *)reg->x10);
         default:
             return 0;
     }
 }
-
 
 
 
@@ -115,8 +123,11 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
             putchar(((char *)buf)[i]);
         goto end;
     } else {
-        if (!current->entry[fd - 2])
-            return 0;
+        if (!current->entry[fd - 2]) {
+            int len = strlen(pipe_buffer);
+            memcpy(pipe_buffer + len,buf,count);
+            return count;
+        }
         memcpy(current->entry[fd - 2]->buffer,buf,count);
         result = count;
         if (current->entry[fd - 2]->file_size < count)
@@ -280,6 +291,11 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
  }
  int sys_chdir(char *path) {
      memcpy(current->work_dir,path,strlen(path));
+     return 0;
+ }
+ int sys_pipe(int *fd) {
+     fd[0] = get_new_fd();
+     fd[1] = get_new_fd();
      return 0;
  }
 void register_syscall(void) {

@@ -114,4 +114,5 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset);
 int sys_fstat(int fd,struct kstat *stat);
 int sys_dup(int fd);
 int sys_chdir(char *path);
+int sys_pipe(int *fd);
 #endif
