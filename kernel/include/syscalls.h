@@ -115,4 +115,5 @@ int sys_fstat(int fd,struct kstat *stat);
 int sys_dup(int fd);
 int sys_chdir(char *path);
 int sys_pipe(int *fd);
+int sys_dup3(int fd,int out);
 #endif

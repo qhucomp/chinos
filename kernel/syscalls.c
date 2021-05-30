@@ -109,6 +109,8 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_chdir((char *)reg->x10);
         case SYS_pipe2:
             return sys_pipe((int *)reg->x10);
+        case SYS_dup3:
+            return sys_dup3(reg->x10,reg->x11);
         default:
             return 0;
     }
@@ -123,10 +125,14 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
             putchar(((char *)buf)[i]);
         goto end;
     } else {
-        if (!current->entry[fd - 2]) {
+        if (!current->entry[fd - 2] && fd - 2 < 8) {
             int len = strlen(pipe_buffer);
             memcpy(pipe_buffer + len,buf,count);
             return count;
+        } else if(fd -2 >= 8) {
+            for(size_t i = 0;i < count;i++,result++)
+                putchar(((char *)buf)[i]);
+            goto end;
         }
         memcpy(current->entry[fd - 2]->buffer,buf,count);
         result = count;
@@ -289,6 +295,10 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
  int sys_dup(int fd) {
      return get_new_fd();
  }
+  int sys_dup3(int fd,int out) {
+     return out;
+ }
+
  int sys_chdir(char *path) {
      memcpy(current->work_dir,path,strlen(path));
      return 0;
