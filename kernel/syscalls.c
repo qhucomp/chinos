@@ -44,12 +44,9 @@ int sys_openat(int64_t dirfd,const char *path,int flags) {
         p = vfs_open(current->entry[dirfd],path);
     if (flags & O_CREATE) {
         p = create_dentry();
-        // p->name = kmalloc(256);
-        // memcpy(p->name,path,strlen(path));
-        // printk("O_CREATE\n");
+        memcpy(p->name,path,strlen(path));
     }
     current->entry[fd - 2] = p;
-    // printk("fd:%d %p\n",fd,current->entry[fd - 2]);
     p->flags = flags;
     if(!p)
         return -1;
@@ -118,7 +115,7 @@ ssize_t sys_write(int fd,void *buf,size_t count) {
         if (!current->entry[fd - 2])
             return 0;
         memcpy(current->entry[fd - 2]->buffer,buf,count);
-        // printk("count:%d %s %p %d %d\n",count,buf,current->entry[fd - 2],fd,current->entry[fd - 2]->file_size);
+        result = count;
         if (current->entry[fd - 2]->file_size < count)
             current->entry[fd - 2]->file_size = count;
     }
