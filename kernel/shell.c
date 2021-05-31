@@ -7,7 +7,7 @@
 extern uint64_t task_count;
 int user_shell(void) {
     const char run_list[][15] ={"/read","/fork","/brk","/clone","/mmap","/munmap",
-                                "/dup","/write ","/getcwd","/getpid","/gettimeofday",
+                                "/dup","/write ","/getcwd","/getpid","/GETTIM~1",
                                 "/mount","/open","/pipe","/test_echo","/times","/uname",
                                 "/wait","/yield_B","/chdir","/close","/dup2","/exit",
                                 "/fstat","/getdents","/mkdir_","/openat","/sleep",
@@ -48,9 +48,6 @@ int user_shell(void) {
 
     ECALL(SYS_user_task,run_list[28],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
-
-    // ECALL(SYS_user_task,run_list[27],0,0,0,0,0);
-    // ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
     ECALL(SYS_user_task,run_list[8],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
@@ -101,6 +98,9 @@ int user_shell(void) {
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
     ECALL(SYS_user_task,run_list[32],0,0,0,0,0);
+    ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+    ECALL(SYS_user_task,run_list[10],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
         printk("\nend test\n");
     while(1);

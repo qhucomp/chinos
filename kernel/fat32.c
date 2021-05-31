@@ -136,8 +136,12 @@ char *get_short_name(const char *name,char *buf) {
     buf[0] = 0x20;
     //printk("copy name:%d\n",buf[0]);
     char *c = strchr(name,'.');
+    if (c == NULL) {
+        memcpy(buf,name,strlen(name));
+        strupr(buf);
+        return buf;
+    }
     int prefix_len = c - name;
-    //printk("%p %p\n",c,name);
     if (c == NULL)
         prefix_len = name_len;
     //printk("prefix_len:%d\n",prefix_len);
