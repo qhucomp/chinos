@@ -4,16 +4,17 @@
 #include "include/sysctl.h"
 #include "include/syscalls.h"
 #include "include/ecall.h"
-int task_count;
+extern uint64_t task_count;
 int user_shell(void) {
     const char run_list[][15] ={"/read","/fork","/brk","/clone","/mmap","/munmap",
                                 "/dup","/write ","/getcwd","/getpid","/gettimeofday",
                                 "/mount","/open","/pipe","/test_echo","/times","/uname",
                                 "/wait","/yield_B","/chdir","/close","/dup2","/exit",
                                 "/fstat","/getdents","/mkdir_","/openat","/sleep",
-                                "/umount","/unlink","/getppid","/waitpid"};
+                                "/umount","/unlink","/getppid","/waitpid","/yield"};
         
     int status;
+    task_count = 0;
     printk("start test\n");
     ECALL(SYS_user_task,run_list[0],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
@@ -97,6 +98,9 @@ int user_shell(void) {
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
 
     ECALL(SYS_user_task,run_list[21],0,0,0,0,0);
+    ECALL(SYS_wait4,-1,&status,0,0,0,0);
+
+    ECALL(SYS_user_task,run_list[32],0,0,0,0,0);
     ECALL(SYS_wait4,-1,&status,0,0,0,0);
         printk("\nend test\n");
     while(1);

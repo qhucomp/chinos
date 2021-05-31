@@ -80,12 +80,8 @@ struct tms
 	long tms_cstime; 
 };
 
-// struct timespec {
-// 	time_t tv_sec;        /* 秒 */
-// 	long   tv_nsec;       /* 纳秒, 范围在0~999999999 */
-// };
-
 extern struct tms global_tms;
+// extern uint64_t task_count;
 /**
  * @brief 处理系统调用
  * 
@@ -115,4 +111,5 @@ int sys_dup(int fd);
 int sys_chdir(char *path);
 int sys_pipe(int *fd);
 int sys_dup3(int fd,int out);
+int sys_yield(void);
 #endif

@@ -13,6 +13,7 @@ syscall_func syscalls[300];
 struct tms global_tms;
 char pipe_buffer[1024];
 int read_point;
+uint64_t task_count;
 static int get_new_fd(void) {
         for(int j = 0;j < 32;j++)
             if (!(current->fd_bitmap & (1U << j))) {
@@ -111,6 +112,8 @@ uintptr_t handle_ecall(uint64_t extension,regs *reg) {
             return sys_pipe((int *)reg->x10);
         case SYS_dup3:
             return sys_dup3(reg->x10,reg->x11);
+        case SYS_sched_yield:
+            return sys_yield();
         default:
             return 0;
     }
@@ -153,20 +156,11 @@ intptr_t sys_brk(size_t pos) {
 int sys_exit(int code) {
     delete_task(current);
     current->exit_code = code;
-    // for(int i = 0;i < current->parent->chilren_len;i++) {
-    //     if (current->parent->chilren[i] && current->parent->chilren[i]->status != TASK_DIE) {
-    //         current = current->parent->chilren[i];
-    //         return current->task_reg.x10;
-    //     }
-    // }
     pid_t pid = current->pid;
     current = current->parent;
-    //printk("pid:%d %p\n",current->pid,current->epc);
-    // if (current->pid == 0)
-    //     current->epc = (uintptr_t)user_shell - 4;
-    //printk("pid:%d ret:%d\n",current->pid,current->task_reg.x10);
     current->task_reg.x10 = pid;
     current->status &= ~TASK_FLAG_FORK;
+    task_count--;
     return pid;
 }
 
@@ -178,12 +172,10 @@ int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
     task->task_reg = current->task_reg;
     memcpy(user_space,get_user_space(current->pid),USER_HEAP_SIZE);
     uint64_t offset;
-    // printk("flags:%p\n",flags);
     if (flags == SIGCHLD) {
         offset = current->epc - (uint64_t)get_user_space(current->pid);
         task->epc = (uintptr_t)user_space + offset;
     } else {
-        // printk("function address:%p\n",flags);
         task->epc = (uintptr_t)user_space + flags;
     }
 
@@ -195,6 +187,7 @@ int sys_clone(uintptr_t flags,uintptr_t stack,pid_t ptid,int tls,int ctid) {
     current->status |= TASK_FLAG_FORK;
     add_task(task);
     current = task;
+    task_count++;
     return 0;
 }
 
@@ -308,6 +301,9 @@ void *sys_mmap(void *start,size_t len,int prot,int flags,int fd,size_t offset) {
      fd[1] = get_new_fd();
      return 0;
  }
+int sys_yield(void) {
+    return 0;
+}
 void register_syscall(void) {
     syscalls[SYS_write] = (syscall_func)sys_write;
     syscalls[SYS_openat] = (syscall_func)sys_openat;
