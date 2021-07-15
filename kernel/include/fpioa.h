@@ -35,8 +35,8 @@
 #ifndef _DRIVER_FPIOA_H
 #define _DRIVER_FPIOA_H
 
-#include <stdint.h>
-#include "platform.h"
+// #include <stdint.h>
+// #include "platform.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -693,37 +693,37 @@ typedef enum _fpioa_driving
  */
 typedef struct _fpioa_io_config
 {
-    uint32_t ch_sel : 8;
+    uint32 ch_sel : 8;
     /*!< Channel select from 256 input. */
-    uint32_t ds : 4;
+    uint32 ds : 4;
     /*!< Driving selector. */
-    uint32_t oe_en : 1;
+    uint32 oe_en : 1;
     /*!< Static output enable, will AND with OE_INV. */
-    uint32_t oe_inv : 1;
+    uint32 oe_inv : 1;
     /*!< Invert output enable. */
-    uint32_t do_sel : 1;
+    uint32 do_sel : 1;
     /*!< Data output select: 0 for DO, 1 for OE. */
-    uint32_t do_inv : 1;
+    uint32 do_inv : 1;
     /*!< Invert the result of data output select (DO_SEL). */
-    uint32_t pu : 1;
+    uint32 pu : 1;
     /*!< Pull up enable. 0 for nothing, 1 for pull up. */
-    uint32_t pd : 1;
+    uint32 pd : 1;
     /*!< Pull down enable. 0 for nothing, 1 for pull down. */
-    uint32_t resv0 : 1;
+    uint32 resv0 : 1;
     /*!< Reserved bits. */
-    uint32_t sl : 1;
+    uint32 sl : 1;
     /*!< Slew rate control enable. */
-    uint32_t ie_en : 1;
+    uint32 ie_en : 1;
     /*!< Static input enable, will AND with IE_INV. */
-    uint32_t ie_inv : 1;
+    uint32 ie_inv : 1;
     /*!< Invert input enable. */
-    uint32_t di_inv : 1;
+    uint32 di_inv : 1;
     /*!< Invert Data input. */
-    uint32_t st : 1;
+    uint32 st : 1;
     /*!< Schmitt trigger. */
-    uint32_t resv1 : 7;
+    uint32 resv1 : 7;
     /*!< Reserved bits. */
-    uint32_t pad_di : 1;
+    uint32 pad_di : 1;
     /*!< Read current IO's data input. */
 } __attribute__((packed, aligned(4))) fpioa_io_config_t;
 
@@ -766,9 +766,9 @@ typedef struct _fpioa_io_config
  */
 typedef struct _fpioa_tie
 {
-    uint32_t en[FUNC_MAX / 32];
+    uint32 en[FUNC_MAX / 32];
     /*!< FPIOA GPIO multiplexer tie enable array */
-    uint32_t val[FUNC_MAX / 32];
+    uint32 val[FUNC_MAX / 32];
     /*!< FPIOA GPIO multiplexer tie value array */
 } __attribute__((packed, aligned(4))) fpioa_tie_t;
 
@@ -1002,7 +1002,7 @@ int fpioa_get_io_by_function(fpioa_function_t function);
  *     - 0      Success
  *     - Other  Fail
  */
-int fpioa_set_sl(int number, uint8_t sl_enable);
+int fpioa_set_sl(int number, uint8 sl_enable);
 
 /**
  * @brief       Set IO schmitt trigger
@@ -1014,7 +1014,7 @@ int fpioa_set_sl(int number, uint8_t sl_enable);
  *     - 0      Success
  *     - Other  Fail
  */
-int fpioa_set_st(int number, uint8_t st_enable);
+int fpioa_set_st(int number, uint8 st_enable);
 
 /**
  * @brief       Set IO output invert enable
@@ -1026,7 +1026,7 @@ int fpioa_set_st(int number, uint8_t st_enable);
  *     - 0      Success
  *     - Other  Fail
  */
-int fpioa_set_oe_inv(int number, uint8_t inv_enable);
+int fpioa_set_oe_inv(int number, uint8 inv_enable);
 
 void fpioa_pin_init(void);
 #ifdef __cplusplus

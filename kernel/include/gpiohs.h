@@ -15,14 +15,29 @@
 #ifndef _DRIVER_GPIOHS_H
 #define _DRIVER_GPIOHS_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include "gpio_common.h"
-#include "platform.h"
-#include "plic.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef enum _gpio_drive_mode
+{
+    GPIO_DM_INPUT,
+    GPIO_DM_INPUT_PULL_DOWN,
+    GPIO_DM_INPUT_PULL_UP,
+    GPIO_DM_OUTPUT,
+} gpio_drive_mode_t;
+
+typedef enum _gpio_pin_edge
+{
+    GPIO_PE_NONE,
+    GPIO_PE_FALLING,
+    GPIO_PE_RISING,
+    GPIO_PE_BOTH,
+    GPIO_PE_LOW,
+    GPIO_PE_HIGH = 8,
+} gpio_pin_edge_t;
+
+typedef enum _gpio_pin_value
+{
+    GPIO_PV_LOW,
+    GPIO_PV_HIGH
+} gpio_pin_value_t;
 
 /* clang-format off */
 /* Register address offsets */
@@ -51,39 +66,39 @@ extern "C" {
 typedef struct _gpiohs_raw
 {
     /* Address offset 0x00 */
-    uint32_t input_val;
+    uint32 input_val;
     /* Address offset 0x04 */
-    uint32_t input_en;
+    uint32 input_en;
     /* Address offset 0x08 */
-    uint32_t output_en;
+    uint32 output_en;
     /* Address offset 0x0c */
-    uint32_t output_val;
+    uint32 output_val;
     /* Address offset 0x10 */
-    uint32_t pullup_en;
+    uint32 pullup_en;
     /* Address offset 0x14 */
-    uint32_t drive;
+    uint32 drive;
     /* Address offset 0x18 */
-    uint32_t rise_ie;
+    uint32 rise_ie;
     /* Address offset 0x1c */
-    uint32_t rise_ip;
+    uint32 rise_ip;
     /* Address offset 0x20 */
-    uint32_t fall_ie;
+    uint32 fall_ie;
     /* Address offset 0x24 */
-    uint32_t fall_ip;
+    uint32 fall_ip;
     /* Address offset 0x28 */
-    uint32_t high_ie;
+    uint32 high_ie;
     /* Address offset 0x2c */
-    uint32_t high_ip;
+    uint32 high_ip;
     /* Address offset 0x30 */
-    uint32_t low_ie;
+    uint32 low_ie;
     /* Address offset 0x34 */
-    uint32_t low_ip;
+    uint32 low_ip;
     /* Address offset 0x38 */
-    uint32_t iof_en;
+    uint32 iof_en;
     /* Address offset 0x3c */
-    uint32_t iof_sel;
+    uint32 iof_sel;
     /* Address offset 0x40 */
-    uint32_t output_xor;
+    uint32 output_xor;
 } __attribute__((packed, aligned(4))) gpiohs_raw_t;
 
 /**
@@ -91,38 +106,38 @@ typedef struct _gpiohs_raw
  */
 typedef struct _gpiohs_bits
 {
-    uint32_t b0 : 1;
-    uint32_t b1 : 1;
-    uint32_t b2 : 1;
-    uint32_t b3 : 1;
-    uint32_t b4 : 1;
-    uint32_t b5 : 1;
-    uint32_t b6 : 1;
-    uint32_t b7 : 1;
-    uint32_t b8 : 1;
-    uint32_t b9 : 1;
-    uint32_t b10 : 1;
-    uint32_t b11 : 1;
-    uint32_t b12 : 1;
-    uint32_t b13 : 1;
-    uint32_t b14 : 1;
-    uint32_t b15 : 1;
-    uint32_t b16 : 1;
-    uint32_t b17 : 1;
-    uint32_t b18 : 1;
-    uint32_t b19 : 1;
-    uint32_t b20 : 1;
-    uint32_t b21 : 1;
-    uint32_t b22 : 1;
-    uint32_t b23 : 1;
-    uint32_t b24 : 1;
-    uint32_t b25 : 1;
-    uint32_t b26 : 1;
-    uint32_t b27 : 1;
-    uint32_t b28 : 1;
-    uint32_t b29 : 1;
-    uint32_t b30 : 1;
-    uint32_t b31 : 1;
+    uint32 b0 : 1;
+    uint32 b1 : 1;
+    uint32 b2 : 1;
+    uint32 b3 : 1;
+    uint32 b4 : 1;
+    uint32 b5 : 1;
+    uint32 b6 : 1;
+    uint32 b7 : 1;
+    uint32 b8 : 1;
+    uint32 b9 : 1;
+    uint32 b10 : 1;
+    uint32 b11 : 1;
+    uint32 b12 : 1;
+    uint32 b13 : 1;
+    uint32 b14 : 1;
+    uint32 b15 : 1;
+    uint32 b16 : 1;
+    uint32 b17 : 1;
+    uint32 b18 : 1;
+    uint32 b19 : 1;
+    uint32 b20 : 1;
+    uint32 b21 : 1;
+    uint32 b22 : 1;
+    uint32 b23 : 1;
+    uint32 b24 : 1;
+    uint32 b25 : 1;
+    uint32 b26 : 1;
+    uint32 b27 : 1;
+    uint32 b28 : 1;
+    uint32 b29 : 1;
+    uint32 b30 : 1;
+    uint32 b31 : 1;
 } __attribute__((packed, aligned(4))) gpiohs_bits_t;
 
 /**
@@ -131,11 +146,11 @@ typedef struct _gpiohs_bits
 typedef union _gpiohs_u32
 {
     /* 32x1 bit mode */
-    uint32_t u32[1];
+    uint32 u32[1];
     /* 16x2 bit mode */
-    uint16_t u16[2];
+    uint16 u16[2];
     /* 8x4 bit mode */
-    uint8_t u8[4];
+    uint8 u8[4];
     /* 1 bit mode */
     gpiohs_bits_t bits;
 } __attribute__((packed, aligned(4))) gpiohs_u32_t;
@@ -204,7 +219,7 @@ extern volatile gpiohs_t *const gpiohs;
  * @param[in]   pin         Gpiohs pin
  * @param[in]   mode        Gpiohs pin drive mode
  */
-void gpiohs_set_drive_mode(uint8_t pin, gpio_drive_mode_t mode);
+void gpiohs_set_drive_mode(uint8 pin, gpio_drive_mode_t mode);
 
 /**
  * @brief       Get Gpiohs pin value
@@ -215,7 +230,7 @@ void gpiohs_set_drive_mode(uint8_t pin, gpio_drive_mode_t mode);
  *     - GPIO_PV_Low     Gpiohs pin low
  *     - GPIO_PV_High    Gpiohs pin high
  */
-gpio_pin_value_t gpiohs_get_pin(uint8_t pin);
+gpio_pin_value_t gpiohs_get_pin(uint8 pin);
 
 /**
  * @brief      Set Gpiohs pin value
@@ -223,7 +238,7 @@ gpio_pin_value_t gpiohs_get_pin(uint8_t pin);
  * @param[in]   pin      Gpiohs pin
  * @param[in]   value    Gpiohs pin value
  */
-void gpiohs_set_pin(uint8_t pin, gpio_pin_value_t value);
+void gpiohs_set_pin(uint8 pin, gpio_pin_value_t value);
 
 /**
  * @brief      Set Gpiohs pin edge for interrupt
@@ -231,7 +246,7 @@ void gpiohs_set_pin(uint8_t pin, gpio_pin_value_t value);
  * @param[in]   pin         Gpiohs pin
  * @param[in]   edge        Gpiohs pin edge type
  */
-void gpiohs_set_pin_edge(uint8_t pin, gpio_pin_edge_t edge);
+void gpiohs_set_pin_edge(uint8 pin, gpio_pin_edge_t edge);
 
 /**
  * @brief      Set Gpiohs pin interrupt
@@ -240,7 +255,7 @@ void gpiohs_set_pin_edge(uint8_t pin, gpio_pin_edge_t edge);
  * @param[in]   priority        Gpiohs pin interrupt priority
  * @param[in]   func            Gpiohs pin interrupt service routine
  */
-void gpiohs_set_irq(uint8_t pin, uint32_t priority, void (*func)());
+void gpiohs_set_irq(uint8 pin, uint32 priority, void (*func)());
 
 /**
  * @brief      Set Gpiohs pin interrupt
@@ -250,18 +265,14 @@ void gpiohs_set_irq(uint8_t pin, uint32_t priority, void (*func)());
  * @param[in]   callback        Gpiohs pin interrupt service routine
  * @param[in]   ctx             Gpiohs interrupt param
  */
-void gpiohs_irq_register(uint8_t pin, uint32_t priority, plic_irq_callback_t callback, void *ctx);
+//void gpiohs_irq_register(uint8 pin, uint32 priority, plic_irq_callback_t callback, void *ctx);
 
 /**
  * @brief      Unregister Gpiohs pin interrupt
  *
  * @param[in]   pin             Gpiohs pin
  */
-void gpiohs_irq_unregister(uint8_t pin);
+void gpiohs_irq_unregister(uint8 pin);
 
-void _gpiohs_set_drive_mode(uint8_t pin, gpio_drive_mode_t mode,int io_number);
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _DRIVER_GPIOHS_H */

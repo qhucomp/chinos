@@ -1,26 +1,18 @@
 #ifndef __STRING_H
 #define __STRING_H
-#include <stddef.h>
-/**
- * @brief 初始化内存区域
- * 
- * @param[in] __dst 被初始化的内存地址
- * 
- * @param[in] c 内存区域初始化的值
- * 
- * @param[in] count 内存大小
- */
-void *memset(void *__dst,int c,size_t count);
 
-void *memcpy(void *__dest,const void *__src,size_t n);
+#include "types.h"
 
-int strncmp(const char *s1,const char *s2,size_t n);
+int             memcmp(const void*, const void*, uint);
+void*           memmove(void*, const void*, uint);
+void*           memset(void*, int, uint);
+char*           safestrcpy(char*, const char*, int);
+int             strlen(const char*);
+int             strncmp(const char*, const char*, uint);
+char*           strncpy(char*, const char*, int);
+void            wnstr(wchar *dst, char const *src, int len);
+void            snstr(char *dst, wchar const *src, int len);
+int             wcsncmp(wchar const *s1, wchar const *s2, int len);
+char*           strchr(const char *s, char c);
 
-size_t strlen(const char *s1);
-
-char *strncat(char *__dst,const char *__src,size_t n);
-
-char *strupr(char *str);
-
- char *strchr(const char *s, int c);
 #endif

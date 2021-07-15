@@ -1,3 +1,11 @@
+// FPIOA Implementation
+
+#include "include/types.h"
+#include "include/fpioa.h"
+#include "include/riscv.h"
+#include "include/sysctl.h"
+#include "include/memlayout.h"
+#include "include/printf.h"
 /* Copyright 2018 Canaan Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +20,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stddef.h>
-#include <stdint.h>
-#include "include/fpioa.h"
-#include "include/sysctl.h"
-#include "include/platform.h"
-#include "include/printk.h"
-volatile fpioa_t *const fpioa = (volatile fpioa_t *)FPIOA_BASE_ADDR;
+volatile fpioa_t *const fpioa = (volatile fpioa_t *)FPIOA_V;
 
 /**
  * @brief      Internal used FPIOA function initialize cell
@@ -28,41 +30,41 @@ volatile fpioa_t *const fpioa = (volatile fpioa_t *)FPIOA_BASE_ADDR;
  */
 typedef struct _fpioa_assign_t
 {
-    uint32_t ch_sel : 8;
+    uint32 ch_sel : 8;
     /* Channel select from 256 input. */
-    uint32_t ds : 4;
+    uint32 ds : 4;
     /* Driving selector. */
-    uint32_t oe_en : 1;
+    uint32 oe_en : 1;
     /* Static output enable, will AND with OE_INV. */
-    uint32_t oe_inv : 1;
+    uint32 oe_inv : 1;
     /* Invert output enable. */
-    uint32_t do_sel : 1;
+    uint32 do_sel : 1;
     /* Data output select: 0 for DO, 1 for OE. */
-    uint32_t do_inv : 1;
+    uint32 do_inv : 1;
     /* Invert the result of data output select (DO_SEL). */
-    uint32_t pu : 1;
+    uint32 pu : 1;
     /* Pull up enable. 0 for nothing, 1 for pull up. */
-    uint32_t pd : 1;
+    uint32 pd : 1;
     /* Pull down enable. 0 for nothing, 1 for pull down. */
-    uint32_t resv0 : 1;
+    uint32 resv0 : 1;
     /* Reserved bits. */
-    uint32_t sl : 1;
+    uint32 sl : 1;
     /* Slew rate control enable. */
-    uint32_t ie_en : 1;
+    uint32 ie_en : 1;
     /* Static input enable, will AND with IE_INV. */
-    uint32_t ie_inv : 1;
+    uint32 ie_inv : 1;
     /* Invert input enable. */
-    uint32_t di_inv : 1;
+    uint32 di_inv : 1;
     /* Invert Data input. */
-    uint32_t st : 1;
+    uint32 st : 1;
     /* Schmitt trigger. */
-    uint32_t tie_en : 1;
+    uint32 tie_en : 1;
     /* Input tie enable, 1 for enable, 0 for disable. */
-    uint32_t tie_val : 1;
+    uint32 tie_val : 1;
     /* Input tie value, 1 for high, 0 for low. */
-    uint32_t resv1 : 5;
+    uint32 resv1 : 5;
     /* Reserved bits. */
-    uint32_t pad_di : 1;
+    uint32 pad_di : 1;
     /* Read current PAD's data input. */
 } __attribute__((packed, aligned(4))) fpioa_assign_t;
 
@@ -4792,7 +4794,7 @@ int fpioa_set_io_pull(int number, fpioa_pull_t pull)
 //     return 0;
 // }
 
-// int fpioa_set_sl(int number, uint8_t sl_enable)
+// int fpioa_set_sl(int number, uint8 sl_enable)
 // {
 //     /* Check parameters */
 //     if(number < 0 || number >= FPIOA_NUM_IO)
@@ -4807,7 +4809,7 @@ int fpioa_set_io_pull(int number, fpioa_pull_t pull)
 //     return 0;
 // }
 
-// int fpioa_set_st(int number, uint8_t st_enable)
+// int fpioa_set_st(int number, uint8 st_enable)
 // {
 //     /* Check parameters */
 //     if(number < 0 || number >= FPIOA_NUM_IO)
@@ -4822,7 +4824,7 @@ int fpioa_set_io_pull(int number, fpioa_pull_t pull)
 //     return 0;
 // }
 
-// int fpioa_set_oe_inv(int number, uint8_t inv_enable)
+// int fpioa_set_oe_inv(int number, uint8 inv_enable)
 // {
 //     /* Check parameters */
 //     if(number < 0 || number >= FPIOA_NUM_IO)
@@ -4873,7 +4875,7 @@ int fpioa_set_function_raw(int number, fpioa_function_t function)
 
 int fpioa_set_function(int number, fpioa_function_t function)
 {
-    uint8_t index = 0;
+    uint8 index = 0;
     /* Check parameters */
     if(number < 0 || number >= FPIOA_NUM_IO || function < 0 || function >= FUNC_MAX)
         return -1;
@@ -4921,31 +4923,21 @@ int fpioa_set_function(int number, fpioa_function_t function)
 int fpioa_get_io_by_function(fpioa_function_t function)
 {
     int index = 0;
-    volatile uint32_t *fpioa_ptr = (uint32_t *)FPIOA_BASE_ADDR;
-
     for(index = 0; index < FPIOA_NUM_IO; index++)
     {
-        if ((fpioa_ptr[index] & 0xff) == function)
+        if(fpioa->io[index].ch_sel == function)
             return index;
-        /*if(fpioa->io[index].ch_sel == function)
-            return index;*/
-        
     }
 
     return -1;
 }
 
 void fpioa_pin_init() {
-    // fpioa_set_function(30, FUNC_SPI0_D0);
-    // fpioa_set_function(31, FUNC_SPI0_D1);
-    // fpioa_set_function(29, FUNC_SPI0_SCLK);
-    // fpioa_set_function(32, FUNC_GPIOHS7);
-    // fpioa_set_function(24, FUNC_SPI0_SS3);
-
     fpioa_set_function(27, FUNC_SPI0_SCLK);
     fpioa_set_function(28, FUNC_SPI0_D0);
     fpioa_set_function(26, FUNC_SPI0_D1);
-    fpioa_set_function(29, FUNC_SPI0_SS0);
+	fpioa_set_function(32, FUNC_GPIOHS7);
+    fpioa_set_function(29, FUNC_SPI0_SS3);
     #ifdef DEBUG
     printf("fpioa_pin_init\n");
     #endif

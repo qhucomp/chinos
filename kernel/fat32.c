@@ -1,686 +1,970 @@
-#include <stdint.h>
-#include <stddef.h>
+#include "include/param.h"
+#include "include/types.h"
+#include "include/riscv.h"
+#include "include/spinlock.h"
+#include "include/sleeplock.h"
+#include "include/buf.h"
+#include "include/proc.h"
+#include "include/stat.h"
 #include "include/fat32.h"
-#include "include/diskio.h"
-#include "include/printk.h"
-#include "include/kmalloc.h"
-#include "include/vfs.h"
 #include "include/string.h"
-#include "include/sdcard.h"
-fat32_fs fat32_vfs;
-fat32_fs *fs;
-char root_buf[65536];
-char buffer[65536];
-size_t fat32_read(dentry_struct *p,void *buf,size_t size) {
-    size_t result = 0;
-    size_t s = size / (512 * fs->boot.bpb_sec_per_clus);
-    if (size % (512 * fs->boot.bpb_sec_per_clus) != 0)
-        s++;
-    if (p->sector_count * 512 < size)
-        s = p->sector_count;
-    
-    // 读取缓冲区
-    //void *buffer = kmalloc(512*s*fs->boot.bpb_sec_per_clus);
-    memset(buffer,0,512*s*fs->boot.bpb_sec_per_clus);
-    for(size_t i = 0;i < s;i++) {
-        if (result >= size)
-            break;
-        if (disk_read(0,(uint8_t *)buffer + 512*i*fs->boot.bpb_sec_per_clus,p->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            break;
-        
-        result += 512*fs->boot.bpb_sec_per_clus;
+#include "include/printf.h"
+
+/* fields that start with "_" are something we don't use */
+
+typedef struct short_name_entry {
+    char        name[CHAR_SHORT_NAME];
+    uint8       attr;
+    uint8       _nt_res;
+    uint8       _crt_time_tenth;
+    uint16      _crt_time;
+    uint16      _crt_date;
+    uint16      _lst_acce_date;
+    uint16      fst_clus_hi;
+    uint16      _lst_wrt_time;
+    uint16      _lst_wrt_date;
+    uint16      fst_clus_lo;
+    uint32      file_size;
+} __attribute__((packed, aligned(4))) short_name_entry_t;
+
+typedef struct long_name_entry {
+    uint8       order;
+    wchar       name1[5];
+    uint8       attr;
+    uint8       _type;
+    uint8       checksum;
+    wchar       name2[6];
+    uint16      _fst_clus_lo;
+    wchar       name3[2];
+} __attribute__((packed, aligned(4))) long_name_entry_t;
+
+union dentry {
+    short_name_entry_t  sne;
+    long_name_entry_t   lne;
+};
+
+static struct {
+    uint32  first_data_sec;
+    uint32  data_sec_cnt;
+    uint32  data_clus_cnt;
+    uint32  byts_per_clus;
+
+    struct {
+        uint16  byts_per_sec;
+        uint8   sec_per_clus;
+        uint16  rsvd_sec_cnt;
+        uint8   fat_cnt;            /* count of FAT regions */
+        uint32  hidd_sec;           /* count of hidden sectors */
+        uint32  tot_sec;            /* total count of sectors including all regions */
+        uint32  fat_sz;             /* count of sectors for a FAT region */
+        uint32  root_clus;
+    } bpb;
+
+} fat;
+
+static struct entry_cache {
+    struct spinlock lock;
+    struct dirent entries[ENTRY_CACHE_NUM];
+} ecache;
+
+typedef struct __part {
+    uint8 flag;
+    uint8 chs[3];
+    uint8 type;
+    uint8 end_chs[3];
+    uint32 lba;
+    uint32 count;
+} __attribute((packed)) part;
+
+typedef struct __mbr {
+    uint8 bootcode[446];
+    part parts[4];
+    uint16 end_flag;
+} __attribute__((packed)) mbr_struct;
+
+static struct dirent root;
+
+/**
+ * Read the Boot Parameter Block.
+ * @return  0       if success
+ *          -1      if fail
+ */
+int fat32_init()
+{
+    #ifdef DEBUG
+    printf("[fat32_init] enter!\n");
+    #endif
+    struct buf *m = bread(0, 0);
+    mbr_struct *mbr = (mbr_struct *)m->data;
+    struct buf *b = bread(0,mbr->parts[0].lba);
+
+    if (strncmp((char const*)(b->data + 82), "FAT32", 5))
+        panic("not FAT32 volume");
+    // fat.bpb.byts_per_sec = *(uint16 *)(b->data + 11);
+    memmove(&fat.bpb.byts_per_sec, b->data + 11, 2);            // avoid misaligned load on k210
+    fat.bpb.sec_per_clus = *(b->data + 13);
+    fat.bpb.rsvd_sec_cnt = *(uint16 *)(b->data + 14) + mbr->parts[0].lba;
+    fat.bpb.fat_cnt = *(b->data + 16);
+    fat.bpb.hidd_sec = *(uint32 *)(b->data + 28);
+    fat.bpb.tot_sec = *(uint32 *)(b->data + 32);
+    fat.bpb.fat_sz = *(uint32 *)(b->data + 36);
+    fat.bpb.root_clus = *(uint32 *)(b->data + 44);
+    fat.first_data_sec = fat.bpb.rsvd_sec_cnt + fat.bpb.fat_cnt * fat.bpb.fat_sz;
+    fat.data_sec_cnt = fat.bpb.tot_sec - fat.first_data_sec;
+    fat.data_clus_cnt = fat.data_sec_cnt / fat.bpb.sec_per_clus;
+    fat.byts_per_clus = fat.bpb.sec_per_clus * fat.bpb.byts_per_sec;
+    brelse(b);
+
+    printf("[FAT32 init]byts_per_sec: %d\n", fat.bpb.byts_per_sec);
+    printf("[FAT32 init]root_clus: %d\n", fat.bpb.root_clus);
+    printf("[FAT32 init]sec_per_clus: %d\n", fat.bpb.sec_per_clus);
+    printf("[FAT32 init]fat_cnt: %d\n", fat.bpb.fat_cnt);
+    printf("[FAT32 init]fat_sz: %d\n", fat.bpb.fat_sz);
+    printf("[FAT32 init]first_data_sec: %d\n", fat.first_data_sec);
+
+    // make sure that byts_per_sec has the same value with BSIZE 
+    if (BSIZE != fat.bpb.byts_per_sec) 
+        panic("byts_per_sec != BSIZE");
+    initlock(&ecache.lock, "ecache");
+    memset(&root, 0, sizeof(root));
+    initsleeplock(&root.lock, "entry");
+    root.attribute = (ATTR_DIRECTORY | ATTR_SYSTEM);
+    root.first_clus = root.cur_clus = fat.bpb.root_clus;
+    root.valid = 1;
+    root.prev = &root;
+    root.next = &root;
+    for(struct dirent *de = ecache.entries; de < ecache.entries + ENTRY_CACHE_NUM; de++) {
+        de->dev = 0;
+        de->valid = 0;
+        de->ref = 0;
+        de->dirty = 0;
+        de->parent = 0;
+        de->next = root.next;
+        de->prev = &root;
+        initsleeplock(&de->lock, "entry");
+        root.next->prev = de;
+        root.next = de;
     }
-    if (result > size)
-        result = size;
-    if (result > p->file_size && p->file_size != 0)
-        result = p->file_size;
-    memcpy(buf,buffer,result);
-    return result;
+    return 0;
 }
 
 /**
- * @brief 从长目录项里读取文件名
- * 
- * @param[in] dentry 要被读取的目录项
- * 
- * @return 返回256字节大小的文件名
+ * @param   cluster   cluster number starts from 2, which means no 0 and 1
  */
-static char *get_entry_name(long_dir_entry *dentry) {
-    char *name = kmalloc(256);
-    int index = 0;
-    dentry--;
-    while(dentry->ldir_ord != 0xe5 || dentry->ldir_attr != 0xf) {
-        int x;
-        for(x = 0;x < 5;x++)
-            if (dentry->ldir_name_1[x] && dentry->ldir_name_1[x] != 0xffff)
-                name[index++] = (char)dentry->ldir_name_1[x];
-        for(x = 0;x < 6;x++)
-            if (dentry->ldir_name_2[x] && dentry->ldir_name_2[x] != 0xffff)
-                name[index++] = (char)dentry->ldir_name_2[x];
-        for(x = 0;x < 2;x++)
-            if (dentry->ldir_name_3[x] && dentry->ldir_name_3[x] != 0xffff)
-                name[index++] = (char)dentry->ldir_name_3[x];
-        if ((dentry->ldir_ord & 0x40))
-            break;
-        dentry--;
+static inline uint32 first_sec_of_clus(uint32 cluster)
+{
+    return ((cluster - 2) * fat.bpb.sec_per_clus) + fat.first_data_sec;
+}
+
+/**
+ * For the given number of a data cluster, return the number of the sector in a FAT table.
+ * @param   cluster     number of a data cluster
+ * @param   fat_num     number of FAT table from 1, shouldn't be larger than bpb::fat_cnt
+ */
+static inline uint32 fat_sec_of_clus(uint32 cluster, uint8 fat_num)
+{
+    return fat.bpb.rsvd_sec_cnt + (cluster << 2) / fat.bpb.byts_per_sec + fat.bpb.fat_sz * (fat_num - 1);
+}
+
+/**
+ * For the given number of a data cluster, return the offest in the corresponding sector in a FAT table.
+ * @param   cluster   number of a data cluster
+ */
+static inline uint32 fat_offset_of_clus(uint32 cluster)
+{
+    return (cluster << 2) % fat.bpb.byts_per_sec;
+}
+
+/**
+ * Read the FAT table content corresponded to the given cluster number.
+ * @param   cluster     the number of cluster which you want to read its content in FAT table
+ */
+static uint32 read_fat(uint32 cluster)
+{
+    if (cluster >= FAT32_EOC) {
+        return cluster;
     }
-    name[index] = 0;
+    if (cluster > fat.data_clus_cnt + 1) {     // because cluster number starts at 2, not 0
+        return 0;
+    }
+    uint32 fat_sec = fat_sec_of_clus(cluster, 1);
+    // here should be a cache layer for FAT table, but not implemented yet.
+    struct buf *b = bread(0, fat_sec);
+    uint32 next_clus = *(uint32 *)(b->data + fat_offset_of_clus(cluster));
+    brelse(b);
+    return next_clus;
+}
+
+/**
+ * Write the FAT region content corresponded to the given cluster number.
+ * @param   cluster     the number of cluster to write its content in FAT table
+ * @param   content     the content which should be the next cluster number of FAT end of chain flag
+ */
+static int write_fat(uint32 cluster, uint32 content)
+{
+    if (cluster > fat.data_clus_cnt + 1) {
+        return -1;
+    }
+    uint32 fat_sec = fat_sec_of_clus(cluster, 1);
+    struct buf *b = bread(0, fat_sec);
+    uint off = fat_offset_of_clus(cluster);
+    *(uint32 *)(b->data + off) = content;
+    bwrite(b);
+    brelse(b);
+    return 0;
+}
+
+static void zero_clus(uint32 cluster)
+{
+    uint32 sec = first_sec_of_clus(cluster);
+    struct buf *b;
+    for (int i = 0; i < fat.bpb.sec_per_clus; i++) {
+        b = bread(0, sec++);
+        memset(b->data, 0, BSIZE);
+        bwrite(b);
+        brelse(b);
+    }
+}
+
+static uint32 alloc_clus(uint8 dev)
+{
+    // should we keep a free cluster list? instead of searching fat every time.
+    struct buf *b;
+    uint32 sec = fat.bpb.rsvd_sec_cnt;
+    uint32 const ent_per_sec = fat.bpb.byts_per_sec / sizeof(uint32);
+    for (uint32 i = 0; i < fat.bpb.fat_sz; i++, sec++) {
+        b = bread(dev, sec);
+        for (uint32 j = 0; j < ent_per_sec; j++) {
+            if (((uint32 *)(b->data))[j] == 0) {
+                ((uint32 *)(b->data))[j] = FAT32_EOC + 7;
+                bwrite(b);
+                brelse(b);
+                uint32 clus = i * ent_per_sec + j;
+                zero_clus(clus);
+                return clus;
+            }
+        }
+        brelse(b);
+    }
+    panic("no clusters");
+}
+
+static void free_clus(uint32 cluster)
+{
+    write_fat(cluster, 0);
+}
+
+static uint rw_clus(uint32 cluster, int write, int user, uint64 data, uint off, uint n)
+{
+    if (off + n > fat.byts_per_clus)
+        panic("offset out of range");
+    uint tot, m;
+    struct buf *bp;
+    uint sec = first_sec_of_clus(cluster) + off / fat.bpb.byts_per_sec;
+    off = off % fat.bpb.byts_per_sec;
+
+    int bad = 0;
+    for (tot = 0; tot < n; tot += m, off += m, data += m, sec++) {
+        bp = bread(0, sec);
+        m = BSIZE - off % BSIZE;
+        if (n - tot < m) {
+            m = n - tot;
+        }
+        if (write) {
+            if ((bad = either_copyin(bp->data + (off % BSIZE), user, data, m)) != -1) {
+                bwrite(bp);
+            }
+        } else {
+            bad = either_copyout(user, data, bp->data + (off % BSIZE), m);
+        }
+        brelse(bp);
+        if (bad == -1) {
+            break;
+        }
+    }
+    return tot;
+}
+
+/**
+ * for the given entry, relocate the cur_clus field based on the off
+ * @param   entry       modify its cur_clus field
+ * @param   off         the offset from the beginning of the relative file
+ * @param   alloc       whether alloc new cluster when meeting end of FAT chains
+ * @return              the offset from the new cur_clus
+ */
+static int reloc_clus(struct dirent *entry, uint off, int alloc)
+{
+    int clus_num = off / fat.byts_per_clus;
+    while (clus_num > entry->clus_cnt) {
+        int clus = read_fat(entry->cur_clus);
+        if (clus >= FAT32_EOC) {
+            if (alloc) {
+                clus = alloc_clus(entry->dev);
+                write_fat(entry->cur_clus, clus);
+            } else {
+                entry->cur_clus = entry->first_clus;
+                entry->clus_cnt = 0;
+                return -1;
+            }
+        }
+        entry->cur_clus = clus;
+        entry->clus_cnt++;
+    }
+    if (clus_num < entry->clus_cnt) {
+        entry->cur_clus = entry->first_clus;
+        entry->clus_cnt = 0;
+        while (entry->clus_cnt < clus_num) {
+            entry->cur_clus = read_fat(entry->cur_clus);
+            if (entry->cur_clus >= FAT32_EOC) {
+                panic("reloc_clus");
+            }
+            entry->clus_cnt++;
+        }
+    }
+    return off % fat.byts_per_clus;
+}
+
+/* like the original readi, but "reade" is odd, let alone "writee" */
+// Caller must hold entry->lock.
+int eread(struct dirent *entry, int user_dst, uint64 dst, uint off, uint n)
+{
+    if (off > entry->file_size || off + n < off || (entry->attribute & ATTR_DIRECTORY)) {
+        return 0;
+    }
+    if (off + n > entry->file_size) {
+        n = entry->file_size - off;
+    }
+
+    uint tot, m;
+    for (tot = 0; entry->cur_clus < FAT32_EOC && tot < n; tot += m, off += m, dst += m) {
+        reloc_clus(entry, off, 0);
+        m = fat.byts_per_clus - off % fat.byts_per_clus;
+        if (n - tot < m) {
+            m = n - tot;
+        }
+        if (rw_clus(entry->cur_clus, 0, user_dst, dst, off % fat.byts_per_clus, m) != m) {
+            break;
+        }
+    }
+    return tot;
+}
+
+// Caller must hold entry->lock.
+int ewrite(struct dirent *entry, int user_src, uint64 src, uint off, uint n)
+{
+    if (off > entry->file_size || off + n < off || (uint64)off + n > 0xffffffff
+        || (entry->attribute & ATTR_READ_ONLY)) {
+        return -1;
+    }
+    if (entry->first_clus == 0) {   // so file_size if 0 too, which requests off == 0
+        entry->cur_clus = entry->first_clus = alloc_clus(entry->dev);
+        entry->clus_cnt = 0;
+        entry->dirty = 1;
+    }
+    uint tot, m;
+    for (tot = 0; tot < n; tot += m, off += m, src += m) {
+        reloc_clus(entry, off, 1);
+        m = fat.byts_per_clus - off % fat.byts_per_clus;
+        if (n - tot < m) {
+            m = n - tot;
+        }
+        if (rw_clus(entry->cur_clus, 1, user_src, src, off % fat.byts_per_clus, m) != m) {
+            break;
+        }
+    }
+    if(n > 0) {
+        if(off > entry->file_size) {
+            entry->file_size = off;
+            entry->dirty = 1;
+        }
+    }
+    return tot;
+}
+
+// Returns a dirent struct. If name is given, check ecache. It is difficult to cache entries
+// by their whole path. But when parsing a path, we open all the directories through it, 
+// which forms a linked list from the final file to the root. Thus, we use the "parent" pointer 
+// to recognize whether an entry with the "name" as given is really the file we want in the right path.
+// Should never get root by eget, it's easy to understand.
+static struct dirent *eget(struct dirent *parent, char *name)
+{
+    struct dirent *ep;
+    acquire(&ecache.lock);
+    if (name) {
+        for (ep = root.next; ep != &root; ep = ep->next) {          // LRU algo
+            if (ep->valid == 1 && ep->parent == parent
+                && strncmp(ep->filename, name, FAT32_MAX_FILENAME) == 0) {
+                if (ep->ref++ == 0) {
+                    ep->parent->ref++;
+                }
+                release(&ecache.lock);
+                // edup(ep->parent);
+                return ep;
+            }
+        }
+    }
+    for (ep = root.prev; ep != &root; ep = ep->prev) {              // LRU algo
+        if (ep->ref == 0) {
+            ep->ref = 1;
+            ep->dev = parent->dev;
+            ep->off = 0;
+            ep->valid = 0;
+            ep->dirty = 0;
+            release(&ecache.lock);
+            return ep;
+        }
+    }
+    panic("eget: insufficient ecache");
+    return 0;
+}
+
+// trim ' ' in the head and tail, '.' in head, and test legality
+char *formatname(char *name)
+{
+    static char illegal[] = { '\"', '*', '/', ':', '<', '>', '?', '\\', '|', 0 };
+    char *p;
+    while (*name == ' ' || *name == '.') { name++; }
+    for (p = name; *p; p++) {
+        char c = *p;
+        if (c < 0x20 || strchr(illegal, c)) {
+            return 0;
+        }
+    }
+    while (p-- > name) {
+        if (*p != ' ') {
+            p[1] = '\0';
+            break;
+        }
+    }
     return name;
 }
 
-dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name);
-fat32_fs *fat32_init(void) {
-    mbr_struct mbr;
-    fs = &fat32_vfs;
-    //fs =  kmalloc(sizeof(fat32_fs));
-    if(disk_read(0,(uint8_t *)&mbr,0,1) == RES_ERROR)
-        panic("read disk error");
-    if(disk_read(0,(uint8_t *)&fs->boot,mbr.parts[0].lba,1) == RES_ERROR)
-        panic("read disk error");
-    rw_count = 0;
-    uint32_t count;
-    if (fs->boot.bpb_fatsz32 > DEFAULT_LOAD_SECTOR)    //最多加载128个扇区
-        count = DEFAULT_LOAD_SECTOR;
-    else
-        count = fs->boot.bpb_fatsz32;
-    //fs->fat1 = kmalloc(512*count);
-    // printk("count:%d %p\n",count,fs->fat1);
-    fs->start_fat_sector = mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt;
-    fs->count = count;
-    fs->data_sector = fs->start_fat_sector + fs->boot.bpb_fatsz32*fs->boot.bpb_num_fats;
-    printk("read lba:%x %x\n",mbr.parts[0].lba + 1,mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt);
-    if(disk_read(0,(uint8_t *)&fs->fs_info,mbr.parts[0].lba + 1,1) == RES_ERROR)
-        panic("read disk error");
-
-    if(disk_read(0,(uint8_t *)fs->fat1,mbr.parts[0].lba + fs->boot.bpb_reserved_sec_cnt,count) == RES_ERROR)
-        panic("read disk error");
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
-    // char buf[512];
-    // dentry_struct *p;
-    // p = fat32_open(NULL,"/read");
-    // fat32_read(p,buf,512);
-    // printk("buf:%s\n");
-    printk("fat LBA:%d,fat sector count:%d,data LBA:%d\n",fs->start_fat_sector,fs->count,fs->data_sector);
-    printk("num fats:%d,fatsz32:%d\n",(uint32_t)fs->boot.bpb_num_fats,fs->boot.bpb_fatsz32);
-    printk("FAT32 init..........OK\n");
-    return fs;
-}
-
-uint32_t clusno_to_sectorno(fat32_fs *fs,uint32_t clusno) {
-    return (clusno - 2)*fs->boot.bpb_sec_per_clus + fs->data_sector;
-}
-
-uint32_t get_fat_sectorno(fat32_fs *fs,uint32_t no) {
-    return fs->start_fat_sector + (no >> 7);
-}
-uint32_t fat_sectorno_to_clusno(fat32_fs *fs,uint32_t sectorno) {
-    return sectorno - fs->start_fat_sector;
-}
-uint32_t get_fat_no(uint32_t fat_no) {
-    return fat_no >> 9;
-}
-uint8_t calc_checksum(const char *name) {
-    uint8_t checksum = 0;
-    for(int i = 0;i < 11;i++)
-        checksum = ((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + name[i];
-    return checksum;
-}
-
-char *get_short_name(const char *name,char *buf) {
-    //char name_buffer[12];
-    memset(buf,0x20,11);
-    size_t name_len = strlen(name);
-    //buf[11] = 0;
-    buf[0] = 0x20;
-    //printk("copy name:%d\n",buf[0]);
-    char *c = strchr(name,'.');
-    if (c == NULL) {
-        memcpy(buf,name,strlen(name));
-        strupr(buf);
-        return buf;
-    }
-    int prefix_len = c - name;
-    if (c == NULL)
-        prefix_len = name_len;
-    //printk("prefix_len:%d\n",prefix_len);
-    if (prefix_len < 8) {
-        memcpy(buf,name,prefix_len);
-        //printk("copy name:%d\n",buf[0]);
-        int size = name_len - prefix_len;
-        if (size > 3)
-            size = 3;
-        memcpy(buf + 8,c + 1,size);
-        strupr(buf);
-    }
-    //printk("NAME:%s len:%d\n",buf,name_len);
-    return buf;
-}
-
-//需要优化
-dentry_struct *fat32_lookup(dentry_struct *dentry,const char *name) {
-    dentry_struct *dentry_p = NULL;
-    int root_size = 1;
-    short_dir_entry *entry = NULL;
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
-    // printk("\n");
-    if (dentry == NULL) {
-        // 加载根目录下的所有目录项
-        int next = fs->boot.bpb_root_clus;
-        dentry = create_dentry();
-        push_sectorno(dentry,clusno_to_sectorno(fs,next));
-
-        next = fs->fat1[next];
-        // int count = 0;
-        if (next < FILE_END) {
-            while (1) {
-                // printk("count:%d\n",count);
-                if (next < fs->count*128) {
-                    // 根目录FAT索引未超过缓存好的FAT的情况
-                    push_sectorno(dentry,clusno_to_sectorno(fs,next));
-                    root_size++;
-
-                    next = fs->fat1[next];
-                } else {
-                    if (next >= FILE_END)
-                        break;
-                    // 根目录的FAT索引超过缓存好的FAT的情况
-                    if(disk_read(0,(uint8_t *)fs->temp_fat,get_fat_sectorno(fs,next),4) == RES_ERROR) {
-                        kfree(dentry->sectorno_list);
-                        kfree(dentry);
-                        panic("read disk failed");
-                    }
-
-                    uint32_t sector_index = 0;
-                    push_sectorno(dentry,clusno_to_sectorno(fs,next));
-                    next = next - fs->count*128;
-
-                    while(1) {
-                        next = fs->temp_fat[next] - sector_index*512 - fs->count*128;
-
-                        //读到文件尾
-                        if (next < 512 && fs->temp_fat[next] >= FILE_END) {
-                            push_sectorno(dentry,clusno_to_sectorno(fs,next));
-                            break;
-                        }
-
-                        if (next >= 511) {
-                            //搜索下一个FAT
-                            uint32_t temp = fs->temp_fat[next];
-                            push_sectorno(dentry,clusno_to_sectorno(fs,fs->temp_fat[next]));
-                            disk_read(0,(uint8_t *)fs->temp_fat,get_fat_sectorno(fs,fs->temp_fat[next]),4);
-                            sector_index++;
-                            next = temp - sector_index*512;
-                            continue;
-                        }
-                        push_sectorno(dentry,clusno_to_sectorno(fs,next));
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    //printk("read root\n");
-    if (name == NULL)
-        return dentry;
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
-    // 读取根目录项
-    //printk("dir entry!\n");
-    // root_buf = kmalloc(fs->boot.bpb_sec_per_clus*dentry->sector_count*512);
-    // printk("start root_buf:%p\n",root_buf);
-    // printk("address:%p size:%d count:%d\n",root_buf,fs->boot.bpb_sec_per_clus*dentry->sector_count*512,dentry->sector_count);
-    if (root_buf == NULL)
-        panic("out of memory!");
-    // printk("total:%d\n",dentry->sector_count);
-    for(uint32_t count = 0;count < dentry->sector_count;count++) {
-        if (disk_read(0,(uint8_t *)root_buf + 512*fs->boot.bpb_sec_per_clus*count,dentry->sectorno_list[count],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            panic("read disk failed");
-        //printk("count:%d\n",count);
-
-    }
-    char short_name_buffer[12];
-    get_short_name(name,short_name_buffer);
-    // printk("short name:%s\n",short_name_buffer);
-    size_t name_len = strlen(name);
-    char *dname;
-    char *buffer;
-    int max_len = 0;
-    // 搜索文件
-    // printk("fat:%p\n",fs->fat1);
-    // for(int i = 0;i < 1024;i++) {
-    //     printk("%x ",fs->fat1[i]);
-    // }
-    // printk("count:%d\n",fs->boot.bpb_sec_per_clus*16*dentry->sector_count);
-    for(uint32_t count = 0;count < fs->boot.bpb_sec_per_clus*16*dentry->sector_count;count++) {
-        entry = (void *)(root_buf + count*32);
-            // printk("short name:%s\n",entry->dir_name);
-        if (is_short_entry(entry)) {
-            // printk("short name:%s\n",entry->dir_name);
-            if (name_len > 12) {
-                dname = get_entry_name((void *)(root_buf + count*32));
-                buffer = (char *)name;
-                max_len = MAX_NAME_LEN;
-            } else {
-                dname = entry->dir_name;
-                buffer = short_name_buffer;
-                max_len = 11;
-            }
-            if (!strncmp(dname,buffer,max_len)) {
-                //printk("dir name:%s\n",buffer);
-                if (max_len < 12) {
-                    char *temp = kmalloc(name_len);
-                    memcpy(temp,dname,name_len);
-                    dname = temp;
-                }
-
-                dentry_p = create_dentry();
-                dentry_p->name = dname;
-                dentry_p->file_size = entry->dir_file_size;
-                uint32_t sector_index = 0;
-                uint32_t clusno = ((uint32_t)entry->dir_fst_clus_hi << 16) | (uint32_t)entry->dir_fst_clus_lo;
-                uint32_t next_clusno = clusno;
-
-                push_sectorno(dentry_p,clusno_to_sectorno(fs,clusno));
-                while(1) {
-                    //printk("%x %x",next_clusno,fs->fat1[next_clusno]);
-                    if (next_clusno < fs->count*128) {
-                        if (fs->fat1[next_clusno] >= FILE_END)
-                            goto end;
-                        push_sectorno(dentry_p,clusno_to_sectorno(fs,fs->fat1[next_clusno]));
-                        next_clusno = fs->fat1[next_clusno];
-                    } else {
-                        if (next_clusno >= FILE_END)
-                            goto end;
-
-                        if(disk_read(0,(uint8_t *)fs->temp_fat,get_fat_sectorno(fs,clusno),4) == RES_ERROR)
-                            panic("read disk failed");
-
-                        next_clusno = next_clusno - fs->count*128;
-                        while(1) {
-                            next_clusno = fs->temp_fat[next_clusno] - sector_index*512 - fs->count*128;
-
-                            //读到文件尾
-                            if (next_clusno < 512 && fs->temp_fat[next_clusno] >= FILE_END) {
-                                push_sectorno(dentry_p,clusno_to_sectorno(fs,next_clusno));
-                                break;
-                            }
-
-                            if (next_clusno >= 511) {
-                                //搜索下一个FAT
-                                uint32_t temp = fs->temp_fat[next_clusno];
-                                push_sectorno(dentry_p,clusno_to_sectorno(fs,fs->temp_fat[next_clusno]));
-                                disk_read(0,(uint8_t *)fs->temp_fat,get_fat_sectorno(fs,fs->temp_fat[next_clusno]),4);
-                                sector_index++;
-                                next_clusno = temp - sector_index*512;
-                                continue;
-                            }
-                            push_sectorno(dentry_p,clusno_to_sectorno(fs,next_clusno));
-                        }
-                        break;
-                    }
-                }
-            } else {
-                if (name_len > 12)
-                    kfree(dname);
-            }
-        }
-    }
-end:
-    // printk("root_buf:%p\n",root_buf);
-    // kfree(root_buf);
-    // printk("kfree ok!\n");
-    //printk("break\n");
-    //printk("d name:%s\n",dentry_p->name);
-    return dentry_p;
-}
-
-dentry_struct *fat32_open(dentry_struct *dir,const char *path) {
-    char name[256];
-    dentry_struct *entry = dir;
+static void generate_shortname(char *shortname, char *name)
+{
+    static char illegal[] = { '+', ',', ';', '=', '[', ']', 0 };   // these are legal in l-n-e but not s-n-e
     int i = 0;
-    int flag = 0;
-    memset(name,0,256);
-    if (path == NULL)
-        return NULL;
-    for(i = 0;path[i] != '/';i++);
-    i++;
-    //printk("path:%s\n",path);
-    while(1) {
-        for(;path[i] == '/' && path[i] != '\0';i++);
-        for(int index = 0;path[i] != '/';i++,index++) {
-            if (path[i] == '.' && path[i+1] == '/')
-                i += 2;
-            if (path[i] == '\0') {
-                flag = 1;
-                break;
-            }
-            name[index] = path[i];
-
-        }
-        if (path[i] == '\0')
-            flag = 1;
-        //printk("name:%s\n",name);
-        dentry_struct *_entry = fat32_lookup(entry,name);
-        kfree(entry);
-        entry = _entry;
-        if(entry == NULL || flag)
+    char c, *p = name;
+    for (int j = strlen(name) - 1; j >= 0; j--) {
+        if (name[j] == '.') {
+            p = name + j;
             break;
+        }
     }
-    //printk("pre-read\n");
-    //预读
-    // if (entry != NULL) {
-    //     uint8_t *buf = kmalloc(512*fs->boot.bpb_sec_per_clus);
-    //     for(i = 0;i < entry->sector_count;i++)
-    //         if (disk_read(0,buf,entry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR) 
-    //             break;
-    //     kfree(buf);
-    // }
-    // printk("entry %p\n",entry);
-    // if (entry != NULL)
-    //     for(int i = 0;i < entry->sector_count;i++)
-    //         printk("%d ",entry->sectorno_list[i]);
+    while (i < CHAR_SHORT_NAME && (c = *name++)) {
+        if (i == 8 && p) {
+            if (p + 1 < name) { break; }            // no '.'
+            else {
+                name = p + 1, p = 0;
+                continue;
+            }
+        }
+        if (c == ' ') { continue; }
+        if (c == '.') {
+            if (name > p) {                    // last '.'
+                memset(shortname + i, ' ', 8 - i);
+                i = 8, p = 0;
+            }
+            continue;
+        }
+        if (c >= 'a' && c <= 'z') {
+            c += 'A' - 'a';
+        } else {
+            if (strchr(illegal, c) != NULL) {
+                c = '_';
+            }
+        }
+        shortname[i++] = c;
+    }
+    while (i < CHAR_SHORT_NAME) {
+        shortname[i++] = ' ';
+    }
+}
+
+uint8 cal_checksum(uchar* shortname)
+{
+    uint8 sum = 0;
+    for (int i = CHAR_SHORT_NAME; i != 0; i--) {
+        sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + *shortname++;
+    }
+    return sum;
+}
+
+/**
+ * Generate an on disk format entry and write to the disk. Caller must hold dp->lock
+ * @param   dp          the directory
+ * @param   ep          entry to write on disk
+ * @param   off         offset int the dp, should be calculated via dirlookup before calling this
+ */
+void emake(struct dirent *dp, struct dirent *ep, uint off)
+{
+    if (!(dp->attribute & ATTR_DIRECTORY))
+        panic("emake: not dir");
+    if (off % sizeof(union dentry))
+        panic("emake: not aligned");
+    
+    union dentry de;
+    memset(&de, 0, sizeof(de));
+    if (off <= 32) {
+        if (off == 0) {
+            strncpy(de.sne.name, ".          ", sizeof(de.sne.name));
+        } else {
+            strncpy(de.sne.name, "..         ", sizeof(de.sne.name));
+        }
+        de.sne.attr = ATTR_DIRECTORY;
+        de.sne.fst_clus_hi = (uint16)(ep->first_clus >> 16);        // first clus high 16 bits
+        de.sne.fst_clus_lo = (uint16)(ep->first_clus & 0xffff);       // low 16 bits
+        de.sne.file_size = 0;                                       // filesize is updated in eupdate()
+        off = reloc_clus(dp, off, 1);
+        rw_clus(dp->cur_clus, 1, 0, (uint64)&de, off, sizeof(de));
+    } else {
+        int entcnt = (strlen(ep->filename) + CHAR_LONG_NAME - 1) / CHAR_LONG_NAME;   // count of l-n-entries, rounds up
+        char shortname[CHAR_SHORT_NAME + 1];
+        memset(shortname, 0, sizeof(shortname));
+        generate_shortname(shortname, ep->filename);
+        de.lne.checksum = cal_checksum((uchar *)shortname);
+        de.lne.attr = ATTR_LONG_NAME;
+        for (int i = entcnt; i > 0; i--) {
+            if ((de.lne.order = i) == entcnt) {
+                de.lne.order |= LAST_LONG_ENTRY;
+            }
+            char *p = ep->filename + (i - 1) * CHAR_LONG_NAME;
+            uint8 *w = (uint8 *)de.lne.name1;
+            int end = 0;
+            for (int j = 1; j <= CHAR_LONG_NAME; j++) {
+                if (end) {
+                    *w++ = 0xff;            // on k210, unaligned reading is illegal
+                    *w++ = 0xff;
+                } else { 
+                    if ((*w++ = *p++) == 0) {
+                        end = 1;
+                    }
+                    *w++ = 0;
+                }
+                switch (j) {
+                    case 5:     w = (uint8 *)de.lne.name2; break;
+                    case 11:    w = (uint8 *)de.lne.name3; break;
+                }
+            }
+            uint off2 = reloc_clus(dp, off, 1);
+            rw_clus(dp->cur_clus, 1, 0, (uint64)&de, off2, sizeof(de));
+            off += sizeof(de);
+        }
+        memset(&de, 0, sizeof(de));
+        strncpy(de.sne.name, shortname, sizeof(de.sne.name));
+        de.sne.attr = ep->attribute;
+        de.sne.fst_clus_hi = (uint16)(ep->first_clus >> 16);      // first clus high 16 bits
+        de.sne.fst_clus_lo = (uint16)(ep->first_clus & 0xffff);     // low 16 bits
+        de.sne.file_size = ep->file_size;                         // filesize is updated in eupdate()
+        off = reloc_clus(dp, off, 1);
+        rw_clus(dp->cur_clus, 1, 0, (uint64)&de, off, sizeof(de));
+    }
+}
+
+/**
+ * Allocate an entry on disk. Caller must hold dp->lock.
+ */
+struct dirent *ealloc(struct dirent *dp, char *name, int attr)
+{
+    if (!(dp->attribute & ATTR_DIRECTORY)) {
+        panic("ealloc not dir");
+    }
+    if (dp->valid != 1 || !(name = formatname(name))) {        // detect illegal character
+        return NULL;
+    }
+    struct dirent *ep;
+    uint off = 0;
+    if ((ep = dirlookup(dp, name, &off)) != 0) {      // entry exists
+        return ep;
+    }
+    ep = eget(dp, name);
+    elock(ep);
+    ep->attribute = attr;
+    ep->file_size = 0;
+    ep->first_clus = 0;
+    ep->parent = edup(dp);
+    ep->off = off;
+    ep->clus_cnt = 0;
+    ep->cur_clus = 0;
+    ep->dirty = 0;
+    strncpy(ep->filename, name, FAT32_MAX_FILENAME);
+    ep->filename[FAT32_MAX_FILENAME] = '\0';
+    if (attr == ATTR_DIRECTORY) {    // generate "." and ".." for ep
+        ep->attribute |= ATTR_DIRECTORY;
+        ep->cur_clus = ep->first_clus = alloc_clus(dp->dev);
+        emake(ep, ep, 0);
+        emake(ep, dp, 32);
+    } else {
+        ep->attribute |= ATTR_ARCHIVE;
+    }
+    emake(dp, ep, off);
+    ep->valid = 1;
+    eunlock(ep);
+    return ep;
+}
+
+struct dirent *edup(struct dirent *entry)
+{
+    if (entry != 0) {
+        acquire(&ecache.lock);
+        entry->ref++;
+        release(&ecache.lock);
+    }
     return entry;
 }
 
-static uint32_t *alloc_fat_index(size_t size,size_t *fat_index_len) {
-    size_t len = size / (512*fs->boot.bpb_sec_per_clus);
-    if (size % (512*fs->boot.bpb_sec_per_clus) != 0)
-        len++;
-    //printk("len:%d\n",len);
-    uint32_t *fat_index_list = kmalloc(sizeof(uint32_t)*len);
-    //fat_index_list[0] = fs->fs_info.fsi_next_free;
-    uint32_t search_index = 3; //= fs->fs_info.fsi_next_free;
-    //printk("free_index:%d\n",fs->fs_info.fsi_next_free);
-    for(size_t i = 0;i <= len;i++) {
-        while(1) {
-            //printk("search_index:%x\n",search_index);
-            if (search_index < fs->count*128) {
+// Only update filesize and first cluster in this case.
+// caller must hold entry->parent->lock
+void eupdate(struct dirent *entry)
+{
+    if (!entry->dirty || entry->valid != 1) { return; }
+    uint entcnt = 0;
+    uint32 off = reloc_clus(entry->parent, entry->off, 0);
+    rw_clus(entry->parent->cur_clus, 0, 0, (uint64) &entcnt, off, 1);
+    entcnt &= ~LAST_LONG_ENTRY;
+    off = reloc_clus(entry->parent, entry->off + (entcnt << 5), 0);
+    union dentry de;
+    rw_clus(entry->parent->cur_clus, 0, 0, (uint64)&de, off, sizeof(de));
+    de.sne.fst_clus_hi = (uint16)(entry->first_clus >> 16);
+    de.sne.fst_clus_lo = (uint16)(entry->first_clus & 0xffff);
+    de.sne.file_size = entry->file_size;
+    rw_clus(entry->parent->cur_clus, 1, 0, (uint64)&de, off, sizeof(de));
+    entry->dirty = 0;
+}
 
-                //printk("value:%x\n",fs->fat1[search_index]);
-                if (fs->fat1[search_index] == 0) {
-                    if (i < len) {
-                        fs->fat1[fat_index_list[i - 1]] = search_index;
-                        fs->fat1[search_index] = FILE_END;
-                        fat_index_list[i] = search_index;
-                    } else {
-                        fs->fat1[fat_index_list[i - 1]] = FILE_END;
-                        fs->fs_info.fsi_next_free = search_index;
-                    }
-                    break;
-                }
-            }
-            search_index++;
-        }
+// caller must hold entry->lock
+// caller must hold entry->parent->lock
+// remove the entry in its parent directory
+void eremove(struct dirent *entry)
+{
+    if (entry->valid != 1) { return; }
+    uint entcnt = 0;
+    uint32 off = entry->off;
+    uint32 off2 = reloc_clus(entry->parent, off, 0);
+    rw_clus(entry->parent->cur_clus, 0, 0, (uint64) &entcnt, off2, 1);
+    entcnt &= ~LAST_LONG_ENTRY;
+    uint8 flag = EMPTY_ENTRY;
+    for (int i = 0; i <= entcnt; i++) {
+        rw_clus(entry->parent->cur_clus, 1, 0, (uint64) &flag, off2, 1);
+        off += 32;
+        off2 = reloc_clus(entry->parent, off, 0);
     }
-    *fat_index_len = len;
-    return fat_index_list;
+    entry->valid = -1;
 }
 
-static uint32_t expand_fat_index(uint32_t index) {
-    uint32_t search_index = index;
-    while(1) {
-        //printk("search_index:%x\n",search_index);
-        if (search_index < fs->count*128) {
-
-            //printk("value:%x\n",fs->fat1[search_index]);
-            if (fs->fat1[search_index] == 0) {
-                fs->fat1[index] = search_index;
-                fs->fat1[search_index] = FILE_END;
-                fs->fs_info.fsi_next_free = search_index;
-                break;
-            }
-        }
-        search_index++;
+// truncate a file
+// caller must hold entry->lock
+void etrunc(struct dirent *entry)
+{
+    for (uint32 clus = entry->first_clus; clus >= 2 && clus < FAT32_EOC; ) {
+        uint32 next = read_fat(clus);
+        free_clus(clus);
+        clus = next;
     }
-    disk_write(0,(uint8_t *)(&fs->fat1[(search_index >> 7) << 7]),get_fat_sectorno(fs,search_index),1);
-    return search_index;
+    entry->file_size = 0;
+    entry->first_clus = 0;
+    entry->dirty = 1;
 }
 
-static void fill_short_entry(short_dir_entry *sdentry,const char *name,uint32_t first_fat_index,uint32_t file_size) {
-    get_short_name(name,sdentry->dir_name);
-    sdentry->dir_file_size = file_size;
-    sdentry->dir_fst_clus_lo = (uint16_t)((first_fat_index << 16) >> 16);
-    sdentry->dir_fst_clus_hi = (uint16_t)(first_fat_index >> 16);
-    sdentry->dir_attr = 0;
-    sdentry->dir_ntres = 0;
-    sdentry->dir_crt_time_tenth = sdentry->dir_crt_time = sdentry->dir_crt_date = sdentry->dir_last_acc_date = sdentry->dir_wrt_time = sdentry->dir_wrt_date = 0;
+void elock(struct dirent *entry)
+{
+    if (entry == 0 || entry->ref < 1)
+        panic("elock");
+    acquiresleep(&entry->lock);
 }
 
-// static long_dir_entry *fill_long_entry(long_dir_entry *ldentry,const char *name) {
+void eunlock(struct dirent *entry)
+{
+    if (entry == 0 || !holdingsleep(&entry->lock) || entry->ref < 1)
+        panic("eunlock");
+    releasesleep(&entry->lock);
+}
 
-// }
-short_dir_entry *find_empty_entry(dentry_struct *dentry,const char *name) {
-    size_t len = strlen(name);
-    int dir_count = 1;
-    int count;
-
-    //计算目录项的数量
-    if (len > 12)
-        dir_count += len / 13 + 1;
-    count = dir_count;
-start: ;
-    short_dir_entry *sdentry = NULL;
-    short_dir_entry *temp = kmalloc(dentry->sector_count*fs->boot.bpb_sec_per_clus*512);
-    if(!temp)
-        panic("out of memory!");
-    for(int i = 0;i < dentry->sector_count;i++)
-        if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            panic("read disk error");
-    for(int i = 0;i < 16*dentry->sector_count;i++) {
-        //printk("i:%d\n",i);
-        if (IS_EMPTY_DIR_ENTRY(temp + i)) {
-            sdentry = temp + i;
-            count--;
-            //printk("dentry index:%d\n",i);
-            break;
+void eput(struct dirent *entry)
+{
+    acquire(&ecache.lock);
+    if (entry != &root && entry->valid != 0 && entry->ref == 1) {
+        // ref == 1 means no other process can have entry locked,
+        // so this acquiresleep() won't block (or deadlock).
+        acquiresleep(&entry->lock);
+        entry->next->prev = entry->prev;
+        entry->prev->next = entry->next;
+        entry->next = root.next;
+        entry->prev = &root;
+        root.next->prev = entry;
+        root.next = entry;
+        release(&ecache.lock);
+        if (entry->valid == -1) {       // this means some one has called eremove()
+            etrunc(entry);
         } else {
-            count = dir_count;
-            sdentry = NULL;
+            elock(entry->parent);
+            eupdate(entry);
+            eunlock(entry->parent);
         }
-        if (!count)
-            break;
-    }
+        releasesleep(&entry->lock);
 
-    if(!sdentry) {
-        uint32_t index;
-        index = expand_fat_index(dentry->sectorno_list[dentry->sector_count - 1]);
-        push_sectorno(dentry,index);
-        kfree(temp);
-        goto start;
+        // Once entry->ref decreases down to 0, we can't guarantee the entry->parent field remains unchanged.
+        // Because eget() may take the entry away and write it.
+        struct dirent *eparent = entry->parent;
+        acquire(&ecache.lock);
+        entry->ref--;
+        release(&ecache.lock);
+        if (entry->ref == 0) {
+            eput(eparent);
+        }
+        return;
     }
-    return sdentry;
-}
-void fill_long_entry(long_dir_entry *lentry,const char *short_name,const char *name) {
-    char checksum = calc_checksum(short_name);
-    size_t len = strlen(name) / 13 + 1;
-    size_t pos = 0;
-    for(int i = 0;i < len;i++) {
-        for(int j = 0;j < 5;j++,pos++)
-            lentry->ldir_name_1[j] = name[pos];
-
-        for(int j = 0;j < 6;j++,pos++)
-            lentry->ldir_name_2[j] = name[pos];
-
-        for(int j = 0;j < 2;j++,pos++)
-            lentry->ldir_name_3[j] = name[pos];
-        lentry->ldir_ord = i;
-        lentry->ldir_attr = 0xf;
-        lentry->ldir_type = 0;
-        lentry->ldir_chksum = checksum;
-        lentry--;
-    }
-    lentry++;
-    lentry->ldir_ord |= FILE_NAME_END; 
-}
-static void alloc_dentry(dentry_struct *dentry,const char *name,uint32_t first_fat_index,uint32_t file_size) {
-// start: ;
-//     void *buf = kmalloc(dentry->sector_count*512);
-//     if(!buf)
-//         goto oom_error;
-//     int len = strlen(name);
-//     int c = len / 13 + 1;
-//     if (len % 13 == 0)
-//         c++;
-//     printk("c=%d\n",c);
-//     int count = 0;
-//     short_dir_entry *entry = buf;
-//     size_t start_index = 0;
-//     for(size_t i = 0;i < 16*dentry->sector_count;i++) {
-//         if (IS_EMPTY_DIR_ENTRY(entry + i))
-//             count++;
-//         else {
-//             count = 0;
-//             start_index = 0;
-//         }
-//             printk("dir_name[0]=%d\n",entry->dir_name[0]);
-//         if(!start_index)
-//             start_index = i;
-//         if (count == c)
-//             break;
-//     }
-//     if (!count) {
-//         printk("realloc\n");
-//         size_t index;
-//         index = *alloc_fat_index(fs,512,&index);
-//         fs->fat1[dentry->sectorno_list[dentry->sector_count - 1]] = index;
-//         disk_write(0,(uint8_t *)&fs->fat1[fat_sectorno_to_clusno(fs,dentry->sectorno_list[dentry->sector_count - 1]) << 7],dentry->sectorno_list[dentry->sector_count - 1],1);
-//         push_sectorno(dentry,get_fat_sectorno(fs,index));
-//         //disk_write(0,(uint8_t *)&fs->fat1[(index >> 7) << 7],get_fat_sectorno(fs,index),1);
-//         kfree(buf);
-//         goto start;
-//     }
-//     long_dir_entry *lentry = buf + (start_index)*32;
-//     entry = buf + (start_index + len - 1) * 32;
-//     int str_len = strlen(name);
-//     memset(entry->dir_name,0x20,11);
-//     for(count = str_len;name[count] != '.';count--);
-//     int dot_pos = count++;
-//     for(count = 0;count < 8 && count < str_len;count++) {
-//         entry->dir_name[count] = name[count];
-//     }
-//     if (entry->dir_name[6] != 0x20) {
-//         entry->dir_name[6] = '~';
-//         entry->dir_name[7] = '1';
-//     }
-//     for(count = 8;count < 11 && count < str_len;count++)
-//         entry->dir_name[count] = name[dot_pos];
-//     entry->dir_fst_clus_hi = (uint16_t)(first_fat_index >> 16);
-//     entry->dir_fst_clus_lo = (uint16_t)(first_fat_index & 0xffff);
-
-//     count = 0;
-//     str_len++;
-//     for(int i = len - 2;i >= 0;i--) {
-//         lentry[i].ldir_chksum = checksum;
-//         lentry[i].ldir_attr = 0x0f;
-//         lentry[i].ldir_ord = len - 2 - i;
-//         lentry[i].ldir_type = 0;
-//         for(int j = 0;j < 5;j++) {
-//             if (j < str_len)
-//                 lentry[i].ldir_name_1[j] = name[count++];
-//             else
-//                 lentry[i].ldir_name_1[j] = NO_CHAR;
-//         }
-//         for(int j = 0;j < 6;j++) {
-//             if (j < str_len)
-//                 lentry[i].ldir_name_2[j] = name[count++];
-//             else
-//                 lentry[i].ldir_name_2[j] = NO_CHAR;
-//         }
-//         for(int j = 0;j < 2;j++) {
-//             if (j < str_len)
-//                 lentry[i].ldir_name_3[j] = name[count++];
-//             else
-//                 lentry[i].ldir_name_3[j] = NO_CHAR;
-//         }
-//     }
-//     lentry[0].ldir_ord = 1 | FILE_NAME_END;
-    // for(count = 0;count < dentry->sector_count;count++) {
-    //     disk_write(0,buf + count*512,dentry->sectorno_list[count],1);
-    // }
-// oom_error:
-//     panic("out of memory!");
-// start: ;
-//     short_dir_entry *sdentry = NULL;
-//         if (disk_read(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-//             panic("read disk error");
-//     for(int i = 0;i < 16*dentry->sector_count;i++) {
-//         //printk("i:%d\n",i);
-//         if (IS_EMPTY_DIR_ENTRY(temp + i)) {
-//             sdentry = temp + i;
-//             //printk("dentry index:%d\n",i);
-//             break;
-//         }
-//     }
-//     if(!sdentry) {
-//         uint32_t index;
-//         index = expand_fat_index(dentry->sectorno_list[dentry->sector_count - 1]);
-//         push_sectorno(dentry,index);
-//         kfree(temp);
-//         goto start;
-//     }
-    short_dir_entry *sdentry = find_empty_entry(dentry,name);
-    if (strlen(name) < 12)
-        fill_short_entry(sdentry,name,first_fat_index,file_size);
-    else {
-        fill_short_entry(sdentry,name,first_fat_index,file_size);
-        fill_long_entry((long_dir_entry *)(sdentry - 1),sdentry->dir_name,name);
-    }
-    short_dir_entry *temp = kmalloc(dentry->sector_count*fs->boot.bpb_sec_per_clus*512);
-    if(!temp)
-        panic("out of memory!");
-    for(int i = 0;i < dentry->sector_count;i++)
-    for(int i = 0;i < dentry->sector_count;i++)
-        if (disk_write(0,(uint8_t *)temp + 512*i*fs->boot.bpb_sec_per_clus,dentry->sectorno_list[i],fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            panic("disk write error");
-    kfree(temp);
+    entry->ref--;
+    release(&ecache.lock);
 }
 
-size_t fat32_write(fat32_fs *fat32,const char *path,const void *data,size_t size) {
-    char name[256];
-    dentry_struct *entry = fat32_lookup(NULL,NULL);
-    dentry_struct *_entry = entry;
-    int i = 0;
-    size_t result = 0;
-    memset(name,0,256);
-    int sector_count = size / (512 * fs->boot.bpb_sec_per_clus);
-    if (sector_count % (512 * fs->boot.bpb_sec_per_clus) != 0)
-        sector_count++;
-    void *_data = kmalloc(sector_count*512*fs->boot.bpb_sec_per_clus);
-    if(!data)
-        panic("out of memory!");
-    memcpy(_data,data,size);
+void estat(struct dirent *de, struct stat *st)
+{
+    strncpy(st->name, de->filename, STAT_MAX_NAME);
+    st->type = (de->attribute & ATTR_DIRECTORY) ? T_DIR : T_FILE;
+    st->dev = de->dev;
+    st->size = de->file_size;
+}
 
-    while(1) {
-        for(;path[i] == '/' && path[i] != '\0';i++);
-        for(int index = 0;path[i] != '/';i++,index++) {
-            name[index] = path[i];
-            if (path[i] == '\0')
-                break;
+/**
+ * Read filename from directory entry.
+ * @param   buffer      pointer to the array that stores the name
+ * @param   raw_entry   pointer to the entry in a sector buffer
+ * @param   islong      if non-zero, read as l-n-e, otherwise s-n-e.
+ */
+static void read_entry_name(char *buffer, union dentry *d)
+{
+    if (d->lne.attr == ATTR_LONG_NAME) {                       // long entry branch
+        wchar temp[NELEM(d->lne.name1)];
+        memmove(temp, d->lne.name1, sizeof(temp));
+        snstr(buffer, temp, NELEM(d->lne.name1));
+        buffer += NELEM(d->lne.name1);
+        snstr(buffer, d->lne.name2, NELEM(d->lne.name2));
+        buffer += NELEM(d->lne.name2);
+        snstr(buffer, d->lne.name3, NELEM(d->lne.name3));
+    } else {
+        // assert: only "." and ".." will enter this branch
+        memset(buffer, 0, CHAR_SHORT_NAME + 2); // plus '.' and '\0'
+        int i;
+        for (i = 0; d->sne.name[i] != ' ' && i < 8; i++) {
+            buffer[i] = d->sne.name[i];
         }
-        
-        _entry = fat32_lookup(entry,name);
-        if(_entry == NULL) {
-            result = -1;
-            break;
+        if (d->sne.name[8] != ' ') {
+            buffer[i++] = '.';
         }
-        entry = _entry;
+        for (int j = 8; j < CHAR_SHORT_NAME; j++, i++) {
+            if (d->sne.name[j] == ' ') { break; }
+            buffer[i] = d->sne.name[j];
+        }
     }
-    size_t len;
-    uint32_t *index_list;
-    index_list = alloc_fat_index(size,&len);
-    alloc_dentry(entry,name,index_list[0],size);
-    uint32_t fat_sectorno;
-    for(size_t i = 0;i < len;i++) {
-        fat_sectorno = get_fat_sectorno(fat32,index_list[i]);
-        disk_write(0,(uint8_t *)(&fat32->fat1[(index_list[i] >> 7) << 7]),fat_sectorno,1);
-        if (disk_write(0,(uint8_t *)_data + i*512*fs->boot.bpb_sec_per_clus,clusno_to_sectorno(fat32,index_list[i]),fs->boot.bpb_sec_per_clus) == RES_ERROR)
-            break;
-        result += 512*fs->boot.bpb_sec_per_clus;
+}
+
+/**
+ * Read entry_info from directory entry.
+ * @param   entry       pointer to the structure that stores the entry info
+ * @param   raw_entry   pointer to the entry in a sector buffer
+ */
+static void read_entry_info(struct dirent *entry, union dentry *d)
+{
+    entry->attribute = d->sne.attr;
+    entry->first_clus = ((uint32)d->sne.fst_clus_hi << 16) | d->sne.fst_clus_lo;
+    entry->file_size = d->sne.file_size;
+    entry->cur_clus = entry->first_clus;
+    entry->clus_cnt = 0;
+}
+
+/**
+ * Read a directory from off, parse the next entry(ies) associated with one file, or find empty entry slots.
+ * Caller must hold dp->lock.
+ * @param   dp      the directory
+ * @param   ep      the struct to be written with info
+ * @param   off     offset off the directory
+ * @param   count   to write the count of entries
+ * @return  -1      meet the end of dir
+ *          0       find empty slots
+ *          1       find a file with all its entries
+ */
+int enext(struct dirent *dp, struct dirent *ep, uint off, int *count)
+{
+    if (!(dp->attribute & ATTR_DIRECTORY))
+        panic("enext not dir");
+    if (ep->valid)
+        panic("enext ep valid");
+    if (off % 32)
+        panic("enext not align");
+    if (dp->valid != 1) { return -1; }
+
+    union dentry de;
+    int cnt = 0;
+    memset(ep->filename, 0, FAT32_MAX_FILENAME + 1);
+    for (int off2; (off2 = reloc_clus(dp, off, 0)) != -1; off += 32) {
+        if (rw_clus(dp->cur_clus, 0, 0, (uint64)&de, off2, 32) != 32 || de.lne.order == END_OF_ENTRY) {
+            return -1;
+        }
+        if (de.lne.order == EMPTY_ENTRY) {
+            cnt++;
+            continue;
+        } else if (cnt) {
+            *count = cnt;
+            return 0;
+        }
+        if (de.lne.attr == ATTR_LONG_NAME) {
+            int lcnt = de.lne.order & ~LAST_LONG_ENTRY;
+            if (de.lne.order & LAST_LONG_ENTRY) {
+                *count = lcnt + 1;                              // plus the s-n-e;
+                count = 0;
+            }
+            read_entry_name(ep->filename + (lcnt - 1) * CHAR_LONG_NAME, &de);
+        } else {
+            if (count) {
+                *count = 1;
+                read_entry_name(ep->filename, &de);
+            }
+            read_entry_info(ep, &de);
+            return 1;
+        }
     }
-    return result;
+    return -1;
+}
+int toupper(int c)
+{
+	if ((c >= 'a') && (c <= 'z'))
+		return c + ('A' - 'a');
+	return c;
+}
+
+int strncmp_upper(const char *s1,const char *s2,int len) {
+    char upper_s1[FAT32_MAX_FILENAME];
+    char upper_s2[FAT32_MAX_FILENAME];
+    memset(upper_s1,0,FAT32_MAX_FILENAME);
+    memset(upper_s2,0,FAT32_MAX_FILENAME);
+
+    for(int i = 0;i < strlen(s1);i++) {
+        upper_s1[i] = toupper(s1[i]);
+    }
+    for(int i = 0;i < strlen(s2);i++) {
+        upper_s2[i] = toupper(s2[i]);
+    }
+    return strncmp(upper_s1,upper_s2,len);
+}
+/**
+ * Seacher for the entry in a directory and return a structure. Besides, record the offset of
+ * some continuous empty slots that can fit the length of filename.
+ * Caller must hold entry->lock.
+ * @param   dp          entry of a directory file
+ * @param   filename    target filename
+ * @param   poff        offset of proper empty entry slots from the beginning of the dir
+ */
+struct dirent *dirlookup(struct dirent *dp, char *filename, uint *poff)
+{
+    if (!(dp->attribute & ATTR_DIRECTORY))
+        panic("dirlookup not DIR");
+    if (strncmp(filename, ".", FAT32_MAX_FILENAME) == 0) {
+        return edup(dp);
+    } else if (strncmp(filename, "..", FAT32_MAX_FILENAME) == 0) {
+        if (dp == &root) {
+            return edup(&root);
+        }
+        return edup(dp->parent);
+    }
+    if (dp->valid != 1) {
+        return NULL;
+    }
+    struct dirent *ep = eget(dp, filename);
+    if (ep->valid == 1) { return ep; }                               // ecache hits
+    int len = strlen(filename);
+    int entcnt = (len + CHAR_LONG_NAME - 1) / CHAR_LONG_NAME + 1;   // count of l-n-entries, rounds up. plus s-n-e
+    int count = 0;
+    int type;
+    uint off = 0;
+    reloc_clus(dp, 0, 0);
+    while ((type = enext(dp, ep, off, &count) != -1)) {
+        if (type == 0) {
+            if (poff && count >= entcnt) {
+                *poff = off;
+                poff = 0;
+            }
+        } else if (strncmp(filename, ep->filename, FAT32_MAX_FILENAME) == 0 || strncmp_upper(filename, ep->filename, FAT32_MAX_FILENAME) == 0) {
+            ep->parent = edup(dp);
+            ep->off = off;
+            ep->valid = 1;
+            return ep;
+        }
+        off += count << 5;
+    }
+    if (poff) {
+        *poff = off;
+    }
+    eput(ep);
+    return NULL;
+}
+
+static char *skipelem(char *path, char *name)
+{
+    while (*path == '/') {
+        path++;
+    }
+    if (*path == 0) { return NULL; }
+    char *s = path;
+    while (*path != '/' && *path != 0) {
+        path++;
+    }
+    int len = path - s;
+    if (len > FAT32_MAX_FILENAME) {
+        len = FAT32_MAX_FILENAME;
+    }
+    name[len] = 0;
+    memmove(name, s, len);
+    while (*path == '/') {
+        path++;
+    }
+    return path;
+}
+
+// FAT32 version of namex in xv6's original file system.
+static struct dirent *lookup_path(char *path, int parent, char *name)
+{
+    struct dirent *entry, *next;
+    if (*path == '/') {
+        entry = edup(&root);
+    } else if (*path != '\0') {
+        entry = edup(myproc()->cwd);
+    } else {
+        return NULL;
+    }
+    while ((path = skipelem(path, name)) != 0) {
+        elock(entry);
+        if (!(entry->attribute & ATTR_DIRECTORY)) {
+            eunlock(entry);
+            eput(entry);
+            return NULL;
+        }
+        if (parent && *path == '\0') {
+            eunlock(entry);
+            return entry;
+        }
+        if ((next = dirlookup(entry, name, 0)) == 0) {
+            eunlock(entry);
+            eput(entry);
+            return NULL;
+        }
+        eunlock(entry);
+        eput(entry);
+        entry = next;
+    }
+    if (parent) {
+        eput(entry);
+        return NULL;
+    }
+    return entry;
+}
+
+struct dirent *ename(char *path)
+{
+    char name[FAT32_MAX_FILENAME + 1];
+    return lookup_path(path, 0, name);
+}
+
+struct dirent *enameparent(char *path, char *name)
+{
+    return lookup_path(path, 1, name);
 }

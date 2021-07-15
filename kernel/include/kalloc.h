@@ -1,12 +1,11 @@
 #ifndef __KALLOC_H
 #define __KALLOC_H
-#include <stdint.h>
-#define PHYSTOP 0x80400000
-#define PGSIZE 8192
-#define PGSHIFT 12
 
-void* kalloc(void);
-void _kfree(void *);
-void kinit(void);
-uint64_t freemem_amount(void);
+#include "types.h"
+
+void*           kalloc(void);
+void            kfree(void *);
+void            kinit(void);
+uint64          freemem_amount(void);
+
 #endif

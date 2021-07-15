@@ -9,3 +9,6 @@ Cargo.lock
 *.d
 *.o
 bootloader/target
+toolchain
+toolchain.zip
+.vscode

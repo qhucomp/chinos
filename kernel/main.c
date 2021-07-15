@@ -1,54 +1,83 @@
+// Copyright (c) 2006-2019 Frans Kaashoek, Robert Morris, Russ Cox,
+//                         Massachusetts Institute of Technology
+
+#include "include/types.h"
+#include "include/param.h"
+#include "include/memlayout.h"
 #include "include/riscv.h"
-#include "include/uart.h"
-#include "include/platform.h"
-#include "include/ecall.h"
-#include "include/syscalls.h"
-#include "include/printk.h"
-#include "include/logo.h"
-#include "include/kmalloc.h"
-#include "include/idle.h"
-#include "include/kernel_thread.h"
+#include "include/sbi.h"
+#include "include/console.h"
+#include "include/printf.h"
+#include "include/kalloc.h"
 #include "include/timer.h"
-#include "include/sysctl.h"
+#include "include/trap.h"
+#include "include/proc.h"
 #include "include/plic.h"
-#include "include/scheduler.h"
-#include "include/thread_test.h"
-#include "include/diskio.h"
-#include "include/fpioa.h"
-#include "include/gpiohs.h"
+#include "include/vm.h"
+#include "include/disk.h"
+#include "include/buf.h"
+#ifndef QEMU
 #include "include/sdcard.h"
-#include "include/diskio.h"
-#include "include/fat32.h"
-#include "include/encoding.h"
-#include "include/init.h"
-#include "include/string.h"
-#include "include/elf_parse.h"
-#include "include/task.h"
+#include "include/fpioa.h"
+#include "include/dmac.h"
+#endif
 
-extern void _trap_entry(void);
-void kernel_init(void) {
-    write_csr(mtvec,_trap_entry);
-    // 使用6m以上的内存
-    // sysctl_pll_set_freq(SYSCTL_PLL1,800000000UL);
-    // sysctl_pll_enable(SYSCTL_PLL1);
-    fpioa_pin_init();
-    init_kmalloc();
-    plic_init();
-    disk_init();
-    fat32_init();
-    //register_syscall();
-    init_scheduler();
-
-    //开启中断
-    sysctl_enable_irq();
-    last_time_interrupt = sysctl_get_time_us() / 1000;
-    printk("init kernel.........OK\n");
-    print_logo();
+static inline void inithartid(unsigned long hartid) {
+  asm volatile("mv tp, %0" : : "r" (hartid & 0x1));
 }
 
-int main(void) {
-    kernel_init();
-    ECALL(0,0,0,0,0,0,0);
-    while (1);
-    return 0;
+volatile static int started = 0;
+
+void
+main(unsigned long hartid, unsigned long dtb_pa)
+{
+  inithartid(hartid);
+  
+  if (hartid == 0) {
+    consoleinit();
+    printfinit();   // init a lock for printf 
+    print_logo();
+    #ifdef DEBUG
+    printf("hart %d enter main()...\n", hartid);
+    #endif
+    kinit();         // physical page allocator
+    kvminit();       // create kernel page table
+    kvminithart();   // turn on paging
+    timerinit();     // init a lock for timer
+    trapinithart();  // install kernel trap vector, including interrupt handler
+    procinit();
+    plicinit();
+    plicinithart();
+    #ifndef QEMU
+    fpioa_pin_init();
+    dmac_init();
+    #endif 
+    disk_init();
+    binit();         // buffer cache
+    fileinit();      // file table
+    userinit();      // first user process
+    printf("hart 0 init done\n");
+    
+    for(int i = 1; i < NCPU; i++) {
+      unsigned long mask = 1 << i;
+      sbi_send_ipi(&mask);
+    }
+    __sync_synchronize();
+    started = 0;
+  }
+  else
+  {
+    // hart 1
+    while (started == 0)
+      ;
+    __sync_synchronize();
+    #ifdef DEBUG
+    printf("hart %d enter main()...\n", hartid);
+    #endif
+    kvminithart();
+    trapinithart();
+    plicinithart();  // ask PLIC for device interrupts
+    printf("hart 1 init done\n");
+  }
+  scheduler();
 }

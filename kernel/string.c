@@ -1,58 +1,143 @@
-#include "include/string.h"
-#include <stddef.h>
-#include "include/printk.h"
-void *memset(void *__dst,int c,size_t count) {
-    char *dst = __dst;
-    for(size_t i = 0;i < count;i++)
-        dst[i] = c;
-    return __dst;
+#include "include/types.h"
+
+void*
+memset(void *dst, int c, uint n)
+{
+  char *cdst = (char *) dst;
+  int i;
+  for(i = 0; i < n; i++){
+    cdst[i] = c;
+  }
+  return dst;
 }
 
-void *memcpy(void *__dest,const void *__src,size_t n) {
-    char *dst = __dest;
-    for(size_t i = 0;i < n;i++)
-        dst[i] = *(char *)(__src + i);
-    return __dest;
+int
+memcmp(const void *v1, const void *v2, uint n)
+{
+  const uchar *s1, *s2;
+
+  s1 = v1;
+  s2 = v2;
+  while(n-- > 0){
+    if(*s1 != *s2)
+      return *s1 - *s2;
+    s1++, s2++;
+  }
+
+  return 0;
 }
 
-int strncmp(const char *s1,const char *s2,size_t n) {
-    size_t i;
-    for(i = 0;i < n;i++) {
-        if (s1[i] == '\0' || s2[i] == '\0')
-            break;
-        if (s1[i] != s2[i]) 
-            break;
-    }
-    if (i == n)
-        return 0;
-    return s1[i] - s2[i];
+void*
+memmove(void *dst, const void *src, uint n)
+{
+  const char *s;
+  char *d;
+
+  s = src;
+  d = dst;
+  if(s < d && s + n > d){
+    s += n;
+    d += n;
+    while(n-- > 0)
+      *--d = *--s;
+  } else
+    while(n-- > 0)
+      *d++ = *s++;
+
+  return dst;
 }
 
-size_t strlen(const char *s1) {
-    size_t len;
-    for(len = 0;s1[len] != '\0';len++);
-    return len; 
+// memcpy exists to placate GCC.  Use memmove.
+void*
+memcpy(void *dst, const void *src, uint n)
+{
+  return memmove(dst, src, n);
 }
 
-char *strncat(char *__dst,const char *__src,size_t n) {
-    size_t len = strlen(__dst);
-    size_t src_len = strlen(__src);
-    memcpy(__dst + len,__src,src_len);
-    return __dst;
+int
+strncmp(const char *p, const char *q, uint n)
+{
+  while(n > 0 && *p && *p == *q)
+    n--, p++, q++;
+  if(n == 0)
+    return 0;
+  return (uchar)*p - (uchar)*q;
 }
 
-char *strupr(char *str){
-    char *orign=str;
-    for (; *str!='\0'; str++) {
-        if (*str >= 97 && *str <= 122)
-            *str = *str - 32;
-    }
-    return orign;
+char*
+strncpy(char *s, const char *t, int n)
+{
+  char *os;
+
+  os = s;
+  while(n-- > 0 && (*s++ = *t++) != 0)
+    ;
+  while(n-- > 0)
+    *s++ = 0;
+  return os;
 }
- char *strchr(const char *s, int c) {
-     size_t i;
-     for(i = 0;s[i] != '\0' && s[i] != c;i++);
-     if (s[i] != c)
-        return NULL;
-     return (char *)s + i;
- }
+
+// Like strncpy but guaranteed to NUL-terminate.
+char*
+safestrcpy(char *s, const char *t, int n)
+{
+  char *os;
+
+  os = s;
+  if(n <= 0)
+    return os;
+  while(--n > 0 && (*s++ = *t++) != 0)
+    ;
+  *s = 0;
+  return os;
+}
+
+int
+strlen(const char *s)
+{
+  int n;
+
+  for(n = 0; s[n]; n++)
+    ;
+  return n;
+}
+
+// convert uchar string into wide char string 
+void wnstr(wchar *dst, char const *src, int len) {
+  while (len -- && *src) {
+    *(uchar*)dst = *src++;
+    dst ++;
+  }
+
+  *dst = 0;
+}
+
+// convert wide char string into uchar string 
+void snstr(char *dst, wchar const *src, int len) {
+  while (len -- && *src) {
+    *dst++ = (uchar)(*src & 0xff);
+    src ++;
+  }
+  while(len-- > 0)
+    *dst++ = 0;
+}
+
+int wcsncmp(wchar const *s1, wchar const *s2, int len) {
+  int ret = 0;
+
+  while (len-- && *s1) {
+    ret = (int)(*s1++ - *s2++);
+    if (ret) break;
+  }
+
+  return ret;
+}
+
+char*
+strchr(const char *s, char c)
+{
+  for(; *s; s++)
+    if(*s == c)
+      return (char*)s;
+  return 0;
+}
