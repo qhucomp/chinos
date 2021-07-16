@@ -258,18 +258,18 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 })
 
 static void initcode(void) {
-   char init[] = "sh";
+   char init[] = "init";
    char *argv[] = {init,0};
    int pid;
    for(;;) {
-     pid = ECALL(SYS_fork,0,0);
+     pid = ECALL(SYS_clone,0,0);
     if (pid == 0) {
-        ECALL(SYS_exec,init,argv);
+        ECALL(SYS_execve,init,argv);
     } else if (pid < 0) {
       ECALL(SYS_exit,init,argv);
     }
     for(;;) {
-      int wpid = ECALL(SYS_wait,0,0);
+      int wpid = ECALL(SYS_wait4,0,0);
       if (wpid == pid)
         break;
     }

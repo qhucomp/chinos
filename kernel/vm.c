@@ -142,15 +142,15 @@ walkaddr(pagetable_t pagetable, uint64 va)
   uint64 pa;
 
   if(va >= MAXVA)
-    return NULL;
+    return (uint64)NULL;
 
   pte = walk(pagetable, va, 0);
   if(pte == 0)
-    return NULL;
+    return (uint64)NULL;
   if((*pte & PTE_V) == 0)
-    return NULL;
+    return (uint64)NULL;
   if((*pte & PTE_U) == 0)
-    return NULL;
+    return (uint64)NULL;
   pa = PTE2PA(*pte);
   return pa;
 }
@@ -428,7 +428,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == NULL)
+    if(pa0 == (uint64)NULL)
       return -1;
     n = PGSIZE - (dstva - va0);
     if(n > len)
@@ -464,7 +464,7 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == NULL)
+    if(pa0 == (uint64)NULL)
       return -1;
     n = PGSIZE - (srcva - va0);
     if(n > len)
@@ -502,7 +502,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   while(got_null == 0 && max > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == NULL)
+    if(pa0 == (uint64)NULL)
       return -1;
     n = PGSIZE - (srcva - va0);
     if(n > max)

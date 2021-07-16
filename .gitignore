@@ -12,3 +12,4 @@ bootloader/target
 toolchain
 toolchain.zip
 .vscode
+target

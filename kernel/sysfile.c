@@ -44,13 +44,13 @@ argfd(int n, int *pfd, struct file **pf)
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
 static int
-fdalloc(struct file *f)
+fdalloc(struct file *f,int new)
 {
   int fd;
   struct proc *p = myproc();
 
   for(fd = 0; fd < NOFILE; fd++){
-    if(p->ofile[fd] == 0){
+    if(p->ofile[fd] == 0 && (new == -1 || new == fd)){
       p->ofile[fd] = f;
       return fd;
     }
@@ -66,7 +66,20 @@ sys_dup(void)
 
   if(argfd(0, 0, &f) < 0)
     return -1;
-  if((fd=fdalloc(f)) < 0)
+  if((fd=fdalloc(f,-1)) < 0)
+    return -1;
+  filedup(f);
+  return fd;
+}
+
+uint64 sys_dup3(void)
+{
+  struct file *f;
+  int fd;
+  int new;
+  if(argfd(0, 0, &f) < 0 || argint(1,&new) < 0)
+    return -1;
+  if((fd=fdalloc(f,new)) < 0)
     return -1;
   filedup(f);
   return fd;
@@ -114,15 +127,20 @@ uint64
 sys_fstat(void)
 {
   struct file *f;
-  uint64 st; // user pointer to struct stat
+  uint64 kst; // user pointer to struct stat
 
-  if(argfd(0, 0, &f) < 0 || argaddr(1, &st) < 0)
+  if(argfd(0, 0, &f) < 0 || argaddr(1, &kst) < 0)
     return -1;
-  return filestat(f, st);
+
+  struct kstat stat;
+  memset(&stat,0,sizeof(stat));
+  if(copyout2(kst, (char *)&stat, sizeof(stat)) < 0)
+    return -1;
+
+  return 0;
 }
 
-static struct dirent*
-create(char *path, short type, int mode)
+static struct dirent* create(char *path, short type, int mode)
 {
   struct dirent *ep, *dp;
   char name[FAT32_MAX_FILENAME + 1];
@@ -160,8 +178,7 @@ create(char *path, short type, int mode)
   return ep;
 }
 
-uint64
-sys_open(void)
+uint64 sys_openat(void)
 {
   char path[FAT32_MAX_PATH];
   int fd, omode;
@@ -188,7 +205,7 @@ sys_open(void)
     }
   }
 
-  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0){
+  if((f = filealloc()) == NULL || (fd = fdalloc(f,-1)) < 0){
     if (f) {
       fileclose(f);
     }
@@ -212,8 +229,7 @@ sys_open(void)
   return fd;
 }
 
-uint64
-sys_mkdir(void)
+uint64 sys_mkdirat(void)
 {
   char path[FAT32_MAX_PATH];
   struct dirent *ep;
@@ -248,8 +264,7 @@ sys_chdir(void)
   return 0;
 }
 
-uint64
-sys_pipe(void)
+uint64 sys_pipe2(void)
 {
   uint64 fdarray; // user pointer to array of two integers
   struct file *rf, *wf;
@@ -261,7 +276,7 @@ sys_pipe(void)
   if(pipealloc(&rf, &wf) < 0)
     return -1;
   fd0 = -1;
-  if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
+  if((fd0 = fdalloc(rf,-1)) < 0 || (fd1 = fdalloc(wf,-1)) < 0){
     if(fd0 >= 0)
       p->ofile[fd0] = 0;
     fileclose(rf);
@@ -300,7 +315,7 @@ sys_dev(void)
   if(major < 0 || major >= NDEV)
     return -1;
 
-  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0){
+  if((f = filealloc()) == NULL || (fd = fdalloc(f,-1)) < 0){
     if(f)
       fileclose(f);
     return -1;
@@ -317,8 +332,7 @@ sys_dev(void)
 }
 
 // To support ls command
-uint64
-sys_readdir(void)
+uint64 sys_getdents64(void)
 {
   struct file *f;
   uint64 p;
@@ -329,8 +343,7 @@ sys_readdir(void)
 }
 
 // get absolute cwd string
-uint64
-sys_getcwd(void)
+uint64 sys_getcwd(void)
 {
   uint64 addr;
   if (argaddr(0, &addr) < 0)
@@ -376,14 +389,16 @@ isdirempty(struct dirent *dp)
   ret = enext(dp, &ep, 2 * 32, &count);   // skip the "." and ".."
   return ret == -1;
 }
+#define AT_FDCWD (-100)
 
-uint64
-sys_remove(void)
+uint64 sys_unlinkat(void)
 {
   char path[FAT32_MAX_PATH];
   struct dirent *ep;
   int len;
-  if((len = argstr(0, path, FAT32_MAX_PATH)) <= 0)
+  struct file *fp;
+  int fd;
+  if((len = argstr(1, path, FAT32_MAX_PATH)) <= 0 || argfd(0,&fd,&fp) < 0)
     return -1;
 
   char *s = path + len - 1;
@@ -393,10 +408,15 @@ sys_remove(void)
   if (s >= path && *s == '.' && (s == path || *--s == '/')) {
     return -1;
   }
-  
-  if((ep = ename(path)) == NULL){
-    return -1;
+
+  if (AT_FDCWD == fd || *path == '/') {
+    if((ep = ename(path)) == NULL)
+      return -1;
+  } else {
+    if((ep = dirent_name(path,myproc()->ofile[fd]->ep)) == NULL)
+      return -1;
   }
+
   elock(ep);
   if((ep->attribute & ATTR_DIRECTORY) && !isdirempty(ep)){
       eunlock(ep);

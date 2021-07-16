@@ -68,5 +68,5 @@ struct dirent*  ename(char *path);
 struct dirent*  enameparent(char *path, char *name);
 int             eread(struct dirent *entry, int user_dst, uint64 dst, uint off, uint n);
 int             ewrite(struct dirent *entry, int user_src, uint64 src, uint off, uint n);
-
+struct dirent *dirent_name(char *path,struct dirent *dirfp);
 #endif

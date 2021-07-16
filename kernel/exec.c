@@ -27,7 +27,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct dirent *ep, uint offset, uint s
 
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);
-    if(pa == NULL)
+    if(pa == (uint64)NULL)
       panic("loadseg: address should exist");
     if(sz - i < PGSIZE)
       n = sz - i;

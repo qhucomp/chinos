@@ -179,8 +179,7 @@ filewrite(struct file *f, uint64 addr, int n)
 
 // Read from dir f.
 // addr is a user virtual address.
-int
-dirnext(struct file *f, uint64 addr)
+int dirnext(struct file *f, uint64 addr)
 {
   // struct proc *p = myproc();
 
@@ -188,7 +187,7 @@ dirnext(struct file *f, uint64 addr)
     return -1;
 
   struct dirent de;
-  struct stat st;
+  struct user_dirent st;
   int count = 0;
   int ret;
   elock(f->ep);
@@ -200,10 +199,14 @@ dirnext(struct file *f, uint64 addr)
     return 0;
 
   f->off += count * 32;
-  estat(&de, &st);
-  // if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+  st.d_ino = 0;
+  st.d_off = sizeof(struct user_dirent);
+  st.d_reclen =st.d_off;
+  st.d_type = (de.attribute & ATTR_DIRECTORY) ? T_DIR : T_FILE;
+  strncpy(st.d_name, de.filename, STAT_MAX_NAME);
+
   if(copyout2(addr, (char *)&st, sizeof(st)) < 0)
     return -1;
 
-  return 1;
+  return sizeof(st);
 }

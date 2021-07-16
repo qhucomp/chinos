@@ -921,13 +921,15 @@ static char *skipelem(char *path, char *name)
 }
 
 // FAT32 version of namex in xv6's original file system.
-static struct dirent *lookup_path(char *path, int parent, char *name)
+static struct dirent *lookup_path(char *path,struct dirent *dirfd, int parent, char *name)
 {
     struct dirent *entry, *next;
     if (*path == '/') {
         entry = edup(&root);
     } else if (*path != '\0') {
         entry = edup(myproc()->cwd);
+    } else if (dirfd != NULL) {
+        entry = dirfd;
     } else {
         return NULL;
     }
@@ -961,10 +963,15 @@ static struct dirent *lookup_path(char *path, int parent, char *name)
 struct dirent *ename(char *path)
 {
     char name[FAT32_MAX_FILENAME + 1];
-    return lookup_path(path, 0, name);
+    return lookup_path(path,NULL, 0, name);
+}
+
+struct dirent *dirent_name(char *path,struct dirent *dirfp) {
+    char name[FAT32_MAX_FILENAME + 1];
+    return lookup_path(path,dirfp,0,name);
 }
 
 struct dirent *enameparent(char *path, char *name)
 {
-    return lookup_path(path, 1, name);
+    return lookup_path(path,NULL, 1, name);
 }
