@@ -24,8 +24,7 @@
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
-static int
-argfd(int n, int *pfd, struct file **pf)
+int argfd(int n, int *pfd, struct file **pf)
 {
   int fd;
   struct file *f;
@@ -514,3 +513,14 @@ fail:
     eput(src);
   return -1;
 }
+
+// uint64 sys_linkat(void) {
+//   struct file *oldfp,*newfp;
+//   // int newfd,oldfd;
+//   char oldpath[FAT32_MAX_PATH],newpath[FAT32_MAX_PATH];
+//   if(argfd(0,NULL,&oldfp) < 0 || argstr(1,oldpath,FAT32_MAX_PATH) < 0 || argfd(2,NULL,&newfp) < 0 || argstr(3,newpath,FAT32_MAX_PATH) < 0)
+//     return -1;
+//   struct fs_link;
+//   char magic[16] = {211,181,67,36,11,198,87,155,201,251,5,181,187,180,33,59};
+//   printf("path:%s name:%s\n",oldfp->ep->filename,oldpath);
+// }

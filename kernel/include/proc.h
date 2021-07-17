@@ -64,10 +64,21 @@ struct proc {
   struct dirent *cwd;          // Current directory
   char name[16];               // Process name (debugging)
   int tmask;                    // trace mask
+
   char *mmap_address[NOFILE];
   uint64 len[NOFILE];
   uint64 offset[NOFILE];
   int fd[NOFILE];
+  int pgid;
+  int gid;
+  int uid;
+  int tid;
+  int sid;
+  int euid;
+  int egid;
+  gid_t gid_list[32];
+  int list_len;
+  mode_t mask;
 };
 
 void            reg_info(void);

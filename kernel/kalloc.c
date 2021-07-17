@@ -15,7 +15,8 @@
 void freerange(void *pa_start, void *pa_end);
 
 extern char kernel_end[]; // first address after kernel.
-
+uint64 totalram;
+uint64 freeram;
 struct run {
   struct run *next;
 };
@@ -33,6 +34,8 @@ kinit()
   kmem.freelist = 0;
   kmem.npage = 0;
   freerange(kernel_end, (void*)PHYSTOP);
+  freeram = (PHYSTOP - (uint64)kernel_end)/PGSIZE;
+  totalram = 0;
   #ifdef DEBUG
   printf("kernel_end: %p, phystop: %p\n", kernel_end, (void*)PHYSTOP);
   printf("kinit\n");
@@ -59,7 +62,8 @@ kfree(void *pa)
   
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < kernel_end || (uint64)pa >= PHYSTOP)
     panic("kfree");
-
+  freeram++;
+  totalram--;
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -90,6 +94,8 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  totalram++;
+  freeram--;
   return (void*)r;
 }
 

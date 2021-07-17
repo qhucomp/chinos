@@ -38,6 +38,8 @@ entry("dev");
 # entry("readdir");
 entry("getcwd");
 entry("getppid");
+entry("mmap");
+entry("munmap")
 # entry("remove");
 # entry("trace");
 # entry("sysinfo");

@@ -22,9 +22,11 @@ loadseg(pagetable_t pagetable, uint64 va, struct dirent *ep, uint offset, uint s
 {
   uint i, n;
   uint64 pa;
+  // int first = 1;
+  // uint off = 0;
   if((va % PGSIZE) != 0)
     panic("loadseg: va must be page aligned");
-
+  printf("enter loadseg\n");
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);
     if(pa == (uint64)NULL)
@@ -33,10 +35,17 @@ loadseg(pagetable_t pagetable, uint64 va, struct dirent *ep, uint offset, uint s
       n = sz - i;
     else
       n = PGSIZE;
-    if(eread(ep, 0, (uint64)pa, offset+i, n) != n)
+    // printf("%p\n",va+i+va_offset);
+    if(eread(ep, 0, (uint64)pa, offset+i, n) != (n)) {
+      printf("load error\n");
       return -1;
+    }
+    // if(first)
+    //   off = va_offset;
+    // first = 0;
+    // va_offset = 0;
   }
-
+  printf("load successfully\n");
   return 0;
 }
 
@@ -68,6 +77,7 @@ int exec(char *path, char **argv)
     #endif
     goto bad;
   }
+  printf("open file OK\n");
   elock(ep);
   // Check ELF header
   if(eread(ep, 0, (uint64) &elf, 0, sizeof(elf)) != sizeof(elf))
@@ -76,26 +86,51 @@ int exec(char *path, char **argv)
     goto bad;
   if((pagetable = proc_pagetable(p)) == NULL)
     goto bad;
-
+  printf("Check ELF header OK\n");
   // Load program into memory.
+  uint va_offset;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(eread(ep, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+    va_offset = 0;
+    if(eread(ep, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph)) {
+      printf("bad 1\n");
       goto bad;
+    }
     if(ph.type != ELF_PROG_LOAD)
       continue;
-    if(ph.memsz < ph.filesz)
+    if(ph.memsz < ph.filesz) {
+      printf("bad 2\n");
       goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
+    }
+    if(ph.vaddr + ph.memsz < ph.vaddr) {
+      printf("bad 3\n");
       goto bad;
+    }
     uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, kpagetable, sz, ph.vaddr + ph.memsz)) == 0)
+    if(ph.vaddr % PGSIZE != 0) {
+      printf("bad 4\n");
+      printf("vaddr:%p\n",ph.vaddr);
+      uint64 oldaddr = ph.vaddr;
+      ph.vaddr = PGROUNDDOWN(ph.vaddr);
+      va_offset = oldaddr - ph.vaddr;
+      ph.off = PGROUNDDOWN(ph.off);
+      // ph.filesz = 13696;
+      ph.memsz += va_offset;
+      printf("filesz:%d offset:%d va_offset:%d\n",ph.filesz,ph.off,va_offset);
+      // goto bad;
+      // continue;
+    }
+    if((sz1 = uvmalloc(pagetable, kpagetable, sz, ph.vaddr + ph.memsz + 0x4000)) == 0) {
+      printf("bad 3\n");
       goto bad;
+    }
     sz = sz1;
-    if(ph.vaddr % PGSIZE != 0)
+
+    if(loadseg(pagetable, ph.vaddr, ep, ph.off, ph.filesz) < 0) {
+      printf("bad 5\n");
       goto bad;
-    if(loadseg(pagetable, ph.vaddr, ep, ph.off, ph.filesz) < 0)
-      goto bad;
+    }
   }
+  printf("Load program into memory OK\n");
   eunlock(ep);
   eput(ep);
   ep = 0;
@@ -154,6 +189,7 @@ int exec(char *path, char **argv)
   p->kpagetable = kpagetable;
   p->sz = sz;
   p->trapframe->epc = elf.entry;  // initial program counter = main
+  printf("epc:%p\n",p->trapframe->epc);
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
   w_satp(MAKE_SATP(p->kpagetable));

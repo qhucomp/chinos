@@ -59,37 +59,50 @@
 #define SYS_execve                  221
 #define SYS_mmap                    222
 #define SYS_wait4                   260
+
 #define SYS_sched_setaffinity       122
 #define SYS_sched_getaffinity       123
 #define SYS_sched_get_priority_max  125
 #define SYS_sched_get_priority_min  126
+
 #define SYS_kill                    129
 #define SYS_tkill                   130
+
 #define SYS_rt_sigaction            134
 #define SYS_rt_sigprocmask          135
 #define SYS_rt_sigreturn            139
+
 #define SYS_removexattr             14
+
 #define SYS_setpriority             140
 #define SYS_getpriority             141
+
 #define SYS_reboot                  142
+
 #define SYS_setgid                  144
 #define SYS_setuid                  146
 #define SYS_getresuid               147
-#define SYS_lremovexattr            148
 #define SYS_getresgid               150
-#define SYS_times                   153
+
+#define SYS_lremovexattr            148
+
+#define SYS_times                   153 //未实现
+
 #define SYS_setpgid                 154
 #define SYS_getpgid                 155
 #define SYS_getsid                  156
 #define SYS_setsid                  157
 #define SYS_getgroups               158
 #define SYS_setgroups               159
+
 #define SYS_sethostname             161
+
+#define SYS_prctl                   167 //未实现
+
 #define SYS_getrlimit               163
 #define SYS_setrlimit               164
 #define SYS_umask                   166
-#define SYS_prctl                   167
-#define SYS_adjtimex                171
+#define SYS_adjtimex                171 //未实现
 #define SYS_getuid                  174
 #define SYS_geteuid                 175
 #define SYS_getgid                  176
@@ -158,4 +171,74 @@
 #define SYS_set_tid_address         96
 #define SYS_unshare                 97
 #define SYS_futex                   98 
+
+// struct fs_link {
+//     char magic[16];
+//     char path[FAT32_MAX_PATH];
+// };
+// struct timeval {
+//     long      tv_sec;     /* seconds */
+//     long tv_usec;    /* microseconds */
+// };
+
+// struct timex {
+//     int  modes;      /* Mode selector */
+//     long offset;     /* Time offset; nanoseconds, if STA_NANO
+//                         status flag is set, otherwise
+//                         microseconds */
+//     long freq;       /* Frequency offset; see NOTES for units */
+//     long maxerror;   /* Maximum error (microseconds) */
+//     long esterror;   /* Estimated error (microseconds) */
+//     int  status;     /* Clock command/status */
+//     long constant;   /* PLL (phase-locked loop) time constant */
+//     long precision;  /* Clock precision
+//                         (microseconds, read-only) */
+//     long tolerance;  /* Clock frequency tolerance (read-only);
+//                         see NOTES for units */
+//     struct timeval time;
+//                     /* Current time (read-only, except for
+//                         ADJ_SETOFFSET); upon return, time.tv_usec
+//                         contains nanoseconds, if STA_NANO status
+//                         flag is set, otherwise microseconds */
+//     long tick;       /* Microseconds between clock ticks */
+//     long ppsfreq;    /* PPS (pulse per second) frequency
+//                         (read-only); see NOTES for units */
+//     long jitter;     /* PPS jitter (read-only); nanoseconds, if
+//                         STA_NANO status flag is set, otherwise
+//                         microseconds */
+//     int  shift;      /* PPS interval duration
+//                         (seconds, read-only) */
+//     long stabil;     /* PPS stability (read-only);
+//                         see NOTES for units */
+//     long jitcnt;     /* PPS count of jitter limit exceeded
+//                         events (read-only) */
+//     long calcnt;     /* PPS count of calibration intervals
+//                         (read-only) */
+//     long errcnt;     /* PPS count of calibration errors
+//                         (read-only) */
+//     long stbcnt;     /* PPS count of stability limit exceeded
+//                         events (read-only) */
+//     int tai;         /* TAI offset, as set by previous ADJ_TAI
+//                         operation (seconds, read-only,
+//                         since Linux 2.6.26) */
+//     /* Further padding bytes to allow for future expansion */
+// };
+
+// struct sysinfo {
+//     long uptime;             /* Seconds since boot */
+//     unsigned long loads[3];  /* 1, 5, and 15 minute load averages */
+//     unsigned long totalram;  /* Total usable main memory size */
+//     unsigned long freeram;   /* Available memory size */
+//     unsigned long sharedram; /* Amount of shared memory */
+//     unsigned long bufferram; /* Memory used by buffers */
+//     unsigned long totalswap; /* Total swap space size */
+//     unsigned long freeswap;  /* Swap space still available */
+//     unsigned short procs;    /* Number of current processes */
+//     unsigned long totalhigh; /* Total high memory size */
+//     unsigned long freehigh;  /* Available high memory size */
+//     unsigned int mem_unit;   /* Memory unit size in bytes */
+//     char _f[20-2*sizeof(long)-sizeof(int)];
+//                             /* Padding to 64 bytes */
+// };
+
 #endif

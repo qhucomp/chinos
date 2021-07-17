@@ -262,7 +262,7 @@ static void initcode(void) {
    char *argv[] = {init,0};
    int pid;
    for(;;) {
-     pid = ECALL(SYS_clone,0,0);
+    pid = ECALL(SYS_clone,0,0);
     if (pid == 0) {
         ECALL(SYS_execve,init,argv);
     } else if (pid < 0) {
@@ -341,6 +341,7 @@ fork(void)
 
   // Allocate process.
   if((np = allocproc()) == NULL){
+    // printf("clone failed 1\n");
     return -1;
   }
 
@@ -348,6 +349,7 @@ fork(void)
   if(uvmcopy(p->pagetable, np->pagetable, np->kpagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
+    // printf("clone failed 2\n");
     return -1;
   }
   np->sz = p->sz;
@@ -372,7 +374,9 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  np->list_len = 1;
+  np->gid_list[0] = 0;
+  
   np->state = RUNNABLE;
 
   release(&np->lock);
