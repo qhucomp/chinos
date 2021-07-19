@@ -162,6 +162,7 @@ extern uint64 sys_setuid(void);
 extern uint64 sys_setgid(void);
 extern uint64 sys_setegid(void);
 extern uint64 sys_lsetattr(void);
+extern uint64 sys_set_tid_address(void);
 // extern 
 static uint64 (*syscalls[])(void) = {
   [SYS_clone]                   sys_clone,
@@ -232,7 +233,8 @@ static uint64 (*syscalls[])(void) = {
   [SYS_getrlimit]               sys_getrlimit,
   [SYS_setrlimit]               sys_setrlimit,
   [SYS_umask]                   sys_umask,
-  [SYS_lsetxattr]                sys_lsetattr
+  [SYS_lsetxattr]               sys_lsetattr,
+  [SYS_set_tid_address]         sys_set_tid_address
   // [SYS_rename]      sys_rename,
 };
 

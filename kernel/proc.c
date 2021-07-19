@@ -379,6 +379,10 @@ fork(void)
   
   np->state = RUNNABLE;
 
+  np->max_nice = 20;
+  np->min_nice = 0;
+  np->tid = myproc()->tid + 1;
+
   release(&np->lock);
 
   return pid;

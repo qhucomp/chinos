@@ -13,6 +13,7 @@
 #include "include/param.h"
 #include "include/vm.h"
 extern int exec(char *path, char **argv);
+extern struct proc proc[NPROC];
 uint64 sys_exec(void)
 {
   char path[FAT32_MAX_PATH], *argv[MAXARG];
@@ -200,22 +201,54 @@ uint64 sys_munmap(void) {
   if(!error)
     ewrite(proc->ofile[fd]->ep,1,start,offset,len);
   return error;
-  // ewrite(f->ep, 1, addr, f->off, n);
+
 }
+
 extern int argfd(int n, int *pfd, struct file **pf);
 
 uint64 sys_sched_setaffinity(void) {
+  int pid,cpusetsize;
+  uint64 mask;
+  if(argint(0,&pid) < 0 || argint(1,&cpusetsize) < 0 || argaddr(2,&mask) < 0)
+    return -1;
+  if((pid == 0) || (pid == myproc()->pid)){  //检查权限
+    if(copyin2((char *)&proc[pid].cpu_mask,mask,sizeof(cpu_set_t)) < 0)
+      return -1;
+  } else
+    return -1;
   return 0;
 }
+
 uint64 sys_sched_getaffinity(void) {
+  int pid,cpusetsize;
+  uint64 mask;
+  if(argint(0,&pid) < 0 || argint(1,&cpusetsize) < 0 || argaddr(2,&mask) < 0)
+    return -1;
+  if(pid == 0 || pid == myproc()->pid){  //检查权限
+    if(copyout2(mask,(char *)&proc[pid].cpu_mask,sizeof(cpu_set_t)) < 0)
+      return -1;
+  } else
+    return -1;
   return 0;
 }
+
 uint64 sys_sched_get_priority_max(void) {
-  return 0;
+  return myproc()->max_nice;
 }
 uint64 sys_sched_get_priority_min(void) {
-  return 0;
+  return myproc()->min_nice;
 }
+#define SIGHUP  1
+#define SIGINT  2
+#define SIGQUIT 3
+#define SIGILL  4
+#define SIGABRT 6
+#define SIGFPE  8
+#define SIGKILL 9
+#define SIGSEGV 11
+#define SIGPIPE 13
+#define SIGALRM 14
+#define SIGTERM 15
 
 uint64 sys_rt_sigaction(void) {
   return 0;
@@ -232,7 +265,7 @@ uint64 sys_rt_sigreturn(void) {
 uint64 sys_removexattr(void) {
   return 0;
 }
-extern struct proc proc[NPROC];
+
 uint64 sys_setpgid(void) {
   int pgid;
   int pid;
@@ -246,6 +279,7 @@ uint64 sys_setpgid(void) {
     return -1;
   }
 }
+
 uint64 sys_getpgid(void) {
   int pid;
   if(argint(0,&pid) < 0)
@@ -255,6 +289,7 @@ uint64 sys_getpgid(void) {
   else
     return -1;
 }
+
 uint64 sys_setsid(void) {
   int sid;
   int pid;
@@ -309,6 +344,7 @@ uint64 sys_setgroups(void) {
     myproc()->gid_list[i] = glist[i];
   return 0;
 }
+
 char hostname[256] = "chino";
 uint64 sys_sethostname(void) {
   int len;
@@ -429,6 +465,7 @@ uint64 sys_fchown(void) {
 uint64 sys_lsetattr(void) {
   return 0;
 }
+
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
@@ -520,4 +557,12 @@ uint64 sys_sync(void) {
 }
 uint64 sys_utimensat(void) {
   return 0;
+}
+
+uint64 sys_set_tid_address(void) {
+  uint64 tid;
+  if(argaddr(0,&tid) < 0)
+    return -1;
+  copyout2(tid,(char *)&myproc()->tid,sizeof(int));
+  return myproc()->tid;
 }

@@ -41,7 +41,17 @@ extern struct cpu cpus[NCPU];
 
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+typedef int cpu_set_t;
 // Per-process state
+// typedef void siginfo_t;
+// typedef long sigset_t;
+// struct sigaction {
+//     void     (*sa_handler)(int);
+//     void     (*sa_sigaction)(int, siginfo_t *, void *); //do not use
+//     sigset_t   sa_mask;
+//     int        sa_flags;
+// };
+
 struct proc {
   struct spinlock lock;
 
@@ -76,6 +86,10 @@ struct proc {
   int sid;
   int euid;
   int egid;
+  int max_nice;
+  int min_nice;
+  // struct sigaction signal_handler[16];
+  cpu_set_t cpu_mask;
   gid_t gid_list[32];
   int list_len;
   mode_t mask;
