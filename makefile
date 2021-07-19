@@ -73,7 +73,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -g
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -g
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -98,6 +98,13 @@ ifeq ($(platform), qemu)
 linker = ./linker/qemu.ld
 endif
 
+build: $T/kernel userprogs
+	@$(OBJCOPY) $T/kernel --strip-all -O binary $(image)
+	@$(OBJCOPY) $(RUSTSBI) --strip-all -O binary $(k210)
+	@dd if=$(image) of=$(k210) bs=128k seek=1
+	@$(OBJDUMP) -D -b binary -m riscv $(k210) > $T/k210.asm
+	cp $(k210) .
+
 # Compile Kernel
 $T/kernel: $(OBJS) $(linker) $U/initcode
 	@if [ ! -d "./target" ]; then mkdir target; fi
@@ -105,12 +112,10 @@ $T/kernel: $(OBJS) $(linker) $U/initcode
 	@$(OBJDUMP) -S $T/kernel > $T/kernel.asm
 	@$(OBJDUMP) -t $T/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $T/kernel.sym
   
-build: $T/kernel userprogs
-
 # Compile RustSBI
 RUSTSBI:
 ifeq ($(platform), k210)
-	@cd ./bootloader/SBI/rustsbi-k210 && cargo build && cp ./target/riscv64gc-unknown-none-elf/debug/rustsbi-k210 ../sbi-k210
+	@cd ./bootloader/SBI/rustsbi-k210 && cargo build --target riscv64gc-unknown-none-elf&& cp ./target/riscv64gc-unknown-none-elf/debug/rustsbi-k210 ../sbi-k210
 	@$(OBJDUMP) -S ./bootloader/SBI/sbi-k210 > $T/rustsbi-k210.asm
 else
 	@cd ./bootloader/SBI/rustsbi-qemu && cargo build && cp ./target/riscv64gc-unknown-none-elf/debug/rustsbi-qemu ../sbi-qemu
@@ -142,10 +147,6 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 run: build
 ifeq ($(platform), k210)
-	@$(OBJCOPY) $T/kernel --strip-all -O binary $(image)
-	@$(OBJCOPY) $(RUSTSBI) --strip-all -O binary $(k210)
-	@dd if=$(image) of=$(k210) bs=128k seek=1
-	@$(OBJDUMP) -D -b binary -m riscv $(k210) > $T/k210.asm
 	toolchain/bin/kflash_py $(k210)
 else
 	@$(QEMU) $(QEMUOPTS)
@@ -187,28 +188,6 @@ $U/_forktest: $U/forktest.o $(ULIB)
 
 UPROGS=\
 	$U/_init\
-	$U/_sh\
-	$U/_cat\
-	$U/_echo\
-	$U/_grep\
-	$U/_ls\
-	$U/_kill\
-	$U/_mkdir\
-	$U/_xargs\
-	$U/_sleep\
-	$U/_find\
-	$U/_rm\
-	$U/_wc\
-	$U/_test\
-	$U/_usertests\
-	$U/_strace\
-	$U/_mv\
-
-	# $U/_forktest\
-	# $U/_ln\
-	# $U/_stressfs\
-	# $U/_grind\
-	# $U/_zombie\
 
 userprogs: $(UPROGS)
 
@@ -236,7 +215,6 @@ sdcard: userprogs
 	@for file in $$( ls $U/_* ); do \
 		cp $$file $(dst)/bin/$${file#$U/_}; done
 	@cp $U/_init $(dst)/init
-	@cp $U/_sh $(dst)/sh
 	@cp README $(dst)/README
 
 clean: 
