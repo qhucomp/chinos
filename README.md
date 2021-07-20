@@ -1,8 +1,11 @@
 # XV6-RISCV On K210
 Run xv6-riscv on k210 board<br>
-基于xv6-k210的操作系统
-# build
-构建系统并写入到k210中
+本项目是xv6-k210的fork，对xv6-k210添加了更多的系统调用
+# 构建
 ```bash
-make run
+    make
+```
+将系统刷入k210
+```bash
+    make run
 ```
