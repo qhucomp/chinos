@@ -250,6 +250,7 @@ uint64 sys_sched_get_priority_min(void) {
 #define SIGALRM 14
 #define SIGTERM 15
 
+//TODO
 uint64 sys_rt_sigaction(void) {
   return 0;
 }
@@ -449,7 +450,7 @@ uint64 sys_sysinfo(void) {
   return 0;
 }
 
-
+//TODO
 uint64 sys_fchmod(void) {
   return 0;
 }
