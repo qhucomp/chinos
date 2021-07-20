@@ -98,7 +98,7 @@ ifeq ($(platform), qemu)
 linker = ./linker/qemu.ld
 endif
 
-build: $T/kernel userprogs
+all: $T/kernel userprogs
 	@$(OBJCOPY) $T/kernel --strip-all -O binary $(image)
 	@$(OBJCOPY) $(RUSTSBI) --strip-all -O binary $(k210)
 	@dd if=$(image) of=$(k210) bs=128k seek=1
