@@ -12,7 +12,11 @@ main(void)
   dev(O_RDWR, CONSOLE, 0);
   dup(0);  // stdout
   dup(0);  // stderr
-  printf("testing...\n");
-  execve("lua",argv);
+  // printf("testing...\n");
+  // int pid = clone();
+  // if(pid == 0)
+    execve("lua",argv);
+  // else
+    // printf("parent\n");
   while(1);
 }
