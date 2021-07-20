@@ -256,6 +256,7 @@ fn main() -> ! {
         println!("[rustsbi] medeleg: {:#x}", medeleg::read().bits());
         println!("[rustsbi] Kernel entry: 0x80020000");
     }
+
     extern "C" {
         fn _s_mode_start();
     }
