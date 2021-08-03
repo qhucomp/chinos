@@ -1,6 +1,6 @@
-platform	:= k210
-#platform	:= qemu
-# mode := debug
+#platform	:= k210
+platform	:= qemu
+mode := debug
 mode := release
 K=kernel
 U=xv6-user
@@ -66,7 +66,7 @@ RUSTSBI = ./bootloader/SBI/sbi-qemu
 endif
 
 # TOOLPREFIX	:= riscv64-unknown-elf-
-TOOLPREFIX	:= riscv64-unknown-elf-
+TOOLPREFIX	:= toolchain/bin/riscv64-unknown-elf-
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -104,6 +104,7 @@ all: $T/kernel userprogs
 	@dd if=$(image) of=$(k210) bs=128k seek=1
 	@$(OBJDUMP) -D -b binary -m riscv $(k210) > $T/k210.asm
 	cp $(k210) .
+	toolchain/bin/kflash_py $(k210)
 
 # Compile Kernel
 $T/kernel: $(OBJS) $(linker) $U/initcode
