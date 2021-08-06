@@ -25,8 +25,11 @@ loadseg(pagetable_t pagetable, uint64 va, struct dirent *ep, uint offset, uint s
   uint64 pa;
   // int first = 1;
   // uint off = 0;
-  // if((va % PGSIZE) != 0)
+   //if((va % PGSIZE) != 0)
+   //  va = PGROUNDDOWN(va);
   //   panic("loadseg: va must be page aligned");
+  uint64 off = va - PGROUNDDOWN(va);
+  printf("off:%d",off);
   printf("enter loadseg\n");
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);
@@ -36,34 +39,13 @@ loadseg(pagetable_t pagetable, uint64 va, struct dirent *ep, uint offset, uint s
       n = sz - i;
     else
       n = PGSIZE;
-    printf("%p\n",va+i);
-    if(eread(ep, 0, (uint64)pa, offset+i, n) != (n)) {
+    printf("va:%p pa:%p n:%d\n",va+i,pa,n);
+    if(eread(ep, 0, (uint64)pa + off, offset+i, n) != (n)) {
       printf("load error\n");
       return -1;
     }
-    // if(first)
-    //   off = va_offset;
-    // first = 0;
-    // va_offset = 0;
   }
   printf("load successfully\n");
-  return 0;
-  // uint   i, n;
-  // uint64 pa;
-
-  // uint32_t newsz = sz > 10 * PGSIZE ? 10 * PGSIZE : sz;
-
-  // for (i = 0; i < newsz; i += n) {
-  //   pa = walkaddr(pagetable, va + i);
-  //   if (pa == 0)
-  //     panic("loadseg: address should exist");
-  //   pa += (va + i) % PGSIZE;
-  //   n = min(newsz - i, PGSIZE - pa % PGSIZE);
-  //   printf("va=%p pa=%p n=%d\n", va, pa, n);
-  //   if (eread(ep, pa, 0, offset + i, n) != n) {
-  //     return -1;
-  //   }
-  // }
   return 0;
 }
 
@@ -73,13 +55,14 @@ char *env[] ={"SHELL=shell",
               "USER=root",
               "MOTD_SHOWN=pam",
               "LANG=C.UTF-8",
-              "INVOCATION_ID=e9500a871cf044d9886a157f53826684",
+              "INVOCATION_ID=4a5537a1084a45c49a9645327fdf3922",
               "TERM=vt220",
-              "SHLVL=2",
+              "SHLVL=1",
               "JOURNAL_STREAM=8:9265",
               "PATH=/",
-              "OLDPWD=/root",
-              "_=busybox",
+              "OLDPWD=/",
+              "HUSHLOGIN=FALSE",
+              "_=/busybox",
               0};
 static uint64 CopyString(const char *s,pagetable_t pg,uint64 *sp)
 {
@@ -90,57 +73,24 @@ static uint64 CopyString(const char *s,pagetable_t pg,uint64 *sp)
   return *sp;
 }
 
-uint64_t CreateUserStack(uint64 *ustack, struct elfhdr *elf,int argc,int envc,pagetable_t pg,uint64 *sp)
+/*uint64_t CreateUserStack(uint64 *ustack, struct elfhdr *elf,int argc,int envc,pagetable_t pg,uint64 *sp,uint64 load_addr)
 {
   int index = argc + envc + 2;
 
-  uint64_t filename = CopyString("./lua",pg,sp);
+  uint64_t filename = CopyString("./a.out ",pg,sp);
 #define NEW_AUX_ENT(id, val)                                      \
   do {                                                            \
     ustack[index++] = id;                                         \
     ustack[index++] = val;                                        \
   } while (0)
 
-  // 1
-  // 2
-  NEW_AUX_ENT(0x28, 0);
-  NEW_AUX_ENT(0x29, 0);
-  NEW_AUX_ENT(0x2a, 0);
-  NEW_AUX_ENT(0x2b, 0);
-  NEW_AUX_ENT(0x2c, 0);
-  NEW_AUX_ENT(0x2d, 0);
-#define AT_NULL 0      /* end of vector */
-#define AT_IGNORE 1    /* entry should be ignored */
-#define AT_EXECFD 2    /* file descriptor of program */
-#define AT_PHDR 3      /* program headers for program */
-#define AT_PHENT 4     /* size of program header entry */
-#define AT_PHNUM 5     /* number of program headers */
-#define AT_PAGESZ 6    /* system page size */
-#define AT_BASE 7      /* base address of interpreter */
-#define AT_FLAGS 8     /* flags */
-#define AT_ENTRY 9     /* entry point of program */
-#define AT_NOTELF 10   /* program is not ELF */
-#define AT_UID 11      /* real uid */
-#define AT_EUID 12     /* effective uid */
-#define AT_GID 13      /* real gid */
-#define AT_EGID 14     /* effective gid */
-#define AT_PLATFORM 15 /* string identifying CPU for optimizations */
-#define AT_HWCAP 16    /* arch dependent hints at CPU capabilities */
-#define AT_CLKTCK 17   /* frequency at which times() increments */
-/* AT_* values 18 through 22 are reserved */
-#define AT_SECURE 23 /* secure mode boolean */
-#define AT_BASE_PLATFORM                                                       \
-  24 /* string identifying real platform, may differ from AT_PLATFORM. */
-#define AT_RANDOM 25 /* address of 16 random bytes */
-
-#define AT_EXECFN 31 /* filename of program */
-
-#define AT_VECTOR_SIZE_BASE 19 /* NEW_AUX_ENT entries in auxiliary table */
-
-  NEW_AUX_ENT(AT_PHDR, elf->phoff);               // 3
+  uint64 random = 0x32123;
+  NEW_AUX_ENT(AT_HWCAP, 0);                       // 16
+  NEW_AUX_ENT(AT_PAGESZ, 0x1000);                 // 6
+  NEW_AUX_ENT(AT_CLKTCK, 64);                     // 17
+  NEW_AUX_ENT(AT_PHDR, elf->phoff + load_addr);   // 3
   NEW_AUX_ENT(AT_PHENT, sizeof(struct proghdr));  // 4
   NEW_AUX_ENT(AT_PHNUM, elf->phnum);              // 5
-  NEW_AUX_ENT(AT_PAGESZ, 0x1000);                 // 6
   NEW_AUX_ENT(AT_BASE, 0);                        // 7
   NEW_AUX_ENT(AT_FLAGS, 0);                       // 8
   NEW_AUX_ENT(AT_ENTRY, elf->entry);              // 9
@@ -148,9 +98,13 @@ uint64_t CreateUserStack(uint64 *ustack, struct elfhdr *elf,int argc,int envc,pa
   NEW_AUX_ENT(AT_EUID, 0);                        // 12
   NEW_AUX_ENT(AT_GID, 0);                         // 13
   NEW_AUX_ENT(AT_EGID, 0);                        // 14
-  NEW_AUX_ENT(AT_HWCAP, 0x112d);                  // 16
-  NEW_AUX_ENT(AT_CLKTCK, 64);                     // 17
+  NEW_AUX_ENT(AT_SECURE,0);
+  NEW_AUX_ENT(AT_RANDOM,random);
   NEW_AUX_ENT(AT_EXECFN, filename);               // 31
+  //NEW_AUX_ENT(AT_PLATFORM, 0);
+
+  //NEW_AUX_ENT(AT_BASE_PLATFORM, 0);
+  //NEW_AUX_ENT(AT_EXECFD, 3);
   NEW_AUX_ENT(0, 0);
 
 #undef NEW_AUX_ENT
@@ -160,24 +114,177 @@ uint64_t CreateUserStack(uint64 *ustack, struct elfhdr *elf,int argc,int envc,pa
   }
   uint64_t argc2 = argc;
   *sp -= sizeof(uint64_t);
-  copyout(pg, *sp, (char *)&argc2,
-          sizeof(uint64_t));
+  copyout(pg, *sp, (char *)&argc2,sizeof(uint64_t));
   return 0;
+}*/
+typedef struct bin_program {
+    uint64_t    sp;
+    uint64_t    stackbase;
+    void* pagetable;
+    char *      filename;
+    int         argc, envc;
+    uint64_t *  ustack;  // 用户栈(低->高): [argc|argv|env|elf_info]
+    int         stack_top;
+} bin_program_t;
+void bin_program_init(bin_program_t *bin)
+{
+    bin->sp = 0;
+    bin->stackbase = 0;
+    bin->pagetable = NULL;
+    bin->filename = NULL;
+    bin->argc = 0;
+    bin->envc = 0;
+    bin->ustack = NULL;
+    bin->stack_top = 0;
+}
+static int merge_args(char *args[], char *argv[], char *envp[])
+{
+    int i, j = 0;
+    for (i = 0; i < MAXARG; i++) {
+        if (argv[i] != NULL) {
+#ifdef DEBUG_ARGS
+            print("[proc] argv[%d]=%s\n", i, argv[i]);
+#endif
+            args[j++] = argv[i];
+        } else {
+            if (i == 0) {   /* 没有任何参数，不过还是需要至少保留一个参数 */
+                printf("[proc] no argv at %d\n", j);
+                args[j++] = NULL;
+            }
+            break;
+        }
+    }
+#ifdef DEBUG_ARGS
+    print("[proc] argv end at %d\n", j);
+#endif
+    args[j++] = NULL; // 中间预留一个0，因为环境和参数中间要间隔一个0
+    for (i = 0; i < MAXARG; i++) {
+        if (envp[i] != NULL) {
+#ifdef DEBUG_ARGS
+            dbgprint("[proc] envp[%d]=%p\n", i, envp[i]);
+#endif
+            args[j++] = envp[i];
+
+        } else {
+            if (i == 0) {   /* 没有任何参数，不过还是需要至少保留一个参数 */
+                printf("[proc] no envp at %d\n", j);
+                args[j++] = NULL;
+            }
+            break;
+        }
+    }
+    args[j++] = NULL;
+    return j;
+}
+int bin_program_copy_string2stack(bin_program_t *bin, char *strs[])
+{
+    int i = bin->stack_top;
+    for (; strs[i]; i++) {
+        if (i > MAXARG)
+            return -1;
+        bin->sp -= strlen(strs[i]) + 1;
+        bin->sp -= bin->sp % 16;
+        if (bin->sp < bin->stackbase) {
+            return -1;
+        }
+        if (copyout(bin->pagetable, bin->sp, strs[i], strlen(strs[i]) + 1) < 0)
+            return -1;
+        bin->ustack[i] = bin->sp;
+    }
+    bin->ustack[i] = 0;
+    int c = i - bin->stack_top;
+    bin->stack_top = i + 1;
+    return c;
+}
+uint64_t bin_program_copy_nbytes(bin_program_t *bin, char *buf, size_t len)
+{
+    bin->sp -= len + 1;
+    bin->sp -= bin->sp % 16;
+    if (copyout(bin->pagetable, bin->sp, (char *)buf, len + 1) < 0)
+        return -1;
+    return bin->sp;
 }
 
+static uint64_t create_user_stack(bin_program_t *bin_program,struct elfhdr *elf,struct proghdr *elf_phdr)
+{
+    int index = bin_program->argc + bin_program->envc + 2;
+    
+    uint64_t filename = CopyString("/busybox ",bin_program->pagetable,&(bin_program->sp));
+    if ((long)filename == -1)
+        return -1;
+
+    unsigned char k_rand_bytes[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    uint64_t u_rand_bytes = bin_program_copy_nbytes(bin_program, (char *)k_rand_bytes, sizeof(k_rand_bytes));
+    if ((long)u_rand_bytes == -1)
+       return -1;
+
+    uint64_t u_elf_phdr = bin_program_copy_nbytes(bin_program, (char *)elf_phdr, elf->phentsize * elf->phnum);
+    printf("u_elf_phdr:%p\n",u_elf_phdr);
+    if ((long)u_elf_phdr == -1)
+        return -1;
+
+#define NEW_AUX_ENT(id, val)                                                   \
+do {                                                                         \
+    bin_program->ustack[index++] = id;                                         \
+    bin_program->ustack[index++] = val;                                        \
+} while (0)
+    
+  NEW_AUX_ENT(AT_HWCAP, 0x122d);
+	NEW_AUX_ENT(AT_PAGESZ, 0x1000);
+	NEW_AUX_ENT(AT_CLKTCK, 100);
+	NEW_AUX_ENT(AT_PHDR, u_elf_phdr);
+	NEW_AUX_ENT(AT_PHENT, sizeof(struct proghdr));
+	NEW_AUX_ENT(AT_PHNUM, elf->phnum);
+	NEW_AUX_ENT(AT_BASE, 0);
+	
+  NEW_AUX_ENT(AT_FLAGS, 0);
+	NEW_AUX_ENT(AT_ENTRY, elf->entry);
+	NEW_AUX_ENT(AT_UID, 0);
+	NEW_AUX_ENT(AT_EUID, 0);
+	NEW_AUX_ENT(AT_GID, 0);
+	NEW_AUX_ENT(AT_EGID, 0);
+	NEW_AUX_ENT(AT_SECURE, 0);
+	NEW_AUX_ENT(AT_RANDOM, (unsigned long)u_rand_bytes);
+
+    NEW_AUX_ENT(AT_EXECFN, filename);
+    NEW_AUX_ENT(AT_PLATFORM, 0);
+
+    NEW_AUX_ENT(AT_BASE_PLATFORM, 0);
+    NEW_AUX_ENT(AT_EXECFD, 3);  /* 3 is free */
+    NEW_AUX_ENT(AT_NULL, 0);
+
+    #undef NEW_AUX_ENT
+
+    printf("index: %d\n", index);
+
+    bin_program->sp -= sizeof(uint64_t) * index;
+    if (copyout(bin_program->pagetable, bin_program->sp,
+                (char *)bin_program->ustack, sizeof(uint64_t) * index)) {
+        return -1;
+    }
+
+    uint64_t argc = bin_program->argc;
+    bin_program->sp -= sizeof(uint64_t);
+    copyout(bin_program->pagetable, bin_program->sp, (char *)&argc,
+            sizeof(uint64_t));
+    return 0;
+}
 int exec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
-  uint64 argc, sz = 0, sp, ustack[MAXARG+1], stackbase;
-  // uint64 envk[16];
+  uint64 /*argc,*/ sz = 0, sp, ustack[MAXARG+1], stackbase;
   struct elfhdr elf;
   struct dirent *ep;
   struct proghdr ph;
+  struct proghdr *phdr = kalloc();
   pagetable_t pagetable = 0, oldpagetable;
-  pagetable_t kpagetable = 0, oldkpagetable;
+  pagetable_t kpagetable = 0;//, oldkpagetable;
+  bin_program_t bin_prog;
   struct proc *p = myproc();
-
+  printf("enter exec\n");
+  int load_addr_set = 0;
+  uint64 load_addr = 0;
   // Make a copy of p->kpt without old user space, 
   // but with the same kstack we are using now, which can't be changed
   if ((kpagetable = (pagetable_t)kalloc()) == NULL) {
@@ -205,42 +312,50 @@ int exec(char *path, char **argv)
   printf("Check ELF header OK\n");
   // Load program into memory.
   // uint va_offset;
+  uint64 vaddr;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     // va_offset = 0;
     if(eread(ep, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph)) {
-      printf("bad 1\n");
       goto bad;
     }
+    memmove(phdr + i*sizeof(ph), &ph, sizeof(ph));
+
     if(ph.type != ELF_PROG_LOAD)
       continue;
     if(ph.memsz < ph.filesz) {
-      printf("bad 2\n");
       goto bad;
     }
     if(ph.vaddr + ph.memsz < ph.vaddr) {
-      printf("bad 3\n");
       goto bad;
     }
-    uint64 sz1;
+
+    uint64 sz1 = 0;
+    vaddr = ph.vaddr;
+    printf("load vaddr:%p",vaddr);
     if(ph.vaddr % PGSIZE != 0) {
       printf("need align pgsize\n");
+      printf("address:%p\n",ph.vaddr);
+      vaddr = PGROUNDDOWN(ph.vaddr);
+      printf("align address:%p\n",vaddr);
     }
-    if((sz1 = uvmalloc(pagetable, kpagetable, sz, ph.vaddr + ph.memsz + 0x4000)) == 0) {
-      printf("bad 3\n");
+
+    if((sz1 = uvmalloc(pagetable, kpagetable, sz, vaddr + ph.memsz + sz1)) == 0) {
       goto bad;
     }
     sz = sz1;
 
+    if(!load_addr_set) {
+      load_addr_set = 1;
+      load_addr = ph.vaddr;
+    }
     if(loadseg(pagetable, ph.vaddr, ep, ph.off, ph.filesz) < 0) {
-      printf("bad 5\n");
       goto bad;
     }
   }
-  printf("Load program into memory OK\n");
   eunlock(ep);
   eput(ep);
   ep = 0;
-
+  printf("load_addr:%p\n",load_addr);
   p = myproc();
   uint64 oldsz = p->sz;
 
@@ -248,54 +363,32 @@ int exec(char *path, char **argv)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, kpagetable, sz, sz + PGSIZE)) == 0)
+  if((sz1 = uvmalloc(pagetable, kpagetable, sz, sz + PGSIZE * 4)) == 0)
     goto bad;
   sz = sz1;
-  // uvmclear(pagetable, sz-2*PGSIZE);
+  //uvmclear(pagetable, sz-4*PGSIZE);
   sp = sz;
-  stackbase = sp - PGSIZE;
+  stackbase = sp - PGSIZE * 4;
 
-  // Push argument strings, prepare rest of stack in ustack.
-  for(argc = 0; argv[argc]; argc++) {
-    if(argc >= MAXARG)
-      goto bad;
-    sp -= strlen(argv[argc]) + 1;
-    sp -= sp % 16; // riscv sp must be 16-byte aligned
-    if(sp < stackbase)
-      goto bad;
-    if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
-      goto bad;
-    ustack[argc] = sp;
-  }
+  bin_program_init(&bin_prog);
+  bin_prog.stack_top = 0;
+  bin_prog.sp = sp;
+  bin_prog.stackbase = stackbase;
+  bin_prog.pagetable = pagetable;
+  bin_prog.ustack = ustack;
+  merge_args((char **)ustack, argv, env);
+  bin_prog.argc = bin_program_copy_string2stack(&bin_prog, (char **)ustack);
+  if (bin_prog.argc < 0)
+      return -1;
+  
+  bin_prog.envc = bin_program_copy_string2stack(&bin_prog, (char **)ustack);
+  if (bin_prog.envc < 0)
+      return -1;
+  create_user_stack(&bin_prog,&elf,phdr);
 
-  int envc;
-  for(envc = 0; env[envc]; envc++) {
-    if(envc + argc >= MAXARG)
-      goto bad;
-    sp -= strlen(env[envc]) + 1;
-    sp -= sp % 16; // riscv sp must be 16-byte aligned
-    if(sp < stackbase)
-      goto bad;
-    if(copyout(pagetable, sp, env[envc], strlen(env[envc]) + 1) < 0)
-      goto bad;
-    ustack[envc + argc] = sp;
-  }
-
-  ustack[envc + argc] = 0;
-
-  // push the array of argv[] pointers.
-  sp -= (argc+envc+1) * sizeof(uint64);
-  sp -= sp % 16;
-  if(sp < stackbase)
-    goto bad;
-  // if(copyout(pagetable, sp, (char *)ustack, (argc+envc+1)*sizeof(uint64)) < 0)
-  //   goto bad;
-  CreateUserStack(ustack,&elf,argc,envc,pagetable,&sp);
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
-  // p->trapframe->a2 = sp;
-
   // Save program name for debugging.
   for(last=s=path; *s; s++)
     if(*s == '/')
@@ -304,66 +397,28 @@ int exec(char *path, char **argv)
     
   // Commit to the user image.
   oldpagetable = p->pagetable;
-  oldkpagetable = p->kpagetable;
+  //oldkpagetable = p->kpagetable;
   p->pagetable = pagetable;
   p->kpagetable = kpagetable;
   p->sz = sz;
-  p->trapframe->epc = elf.entry;  // initial program counter = main
-  printf("epc:%p\n",p->trapframe->epc);
-  p->trapframe->sp = sp; // initial stack pointer
+  /*if (path[2] == 'a')
+    p->trapframe->epc = 0x0000000000010626;//elf.entry;  // initial program counter = main
+  else*/
+    p->trapframe->epc = elf.entry;
+
+  printf("path=%s epc:%p sp:%p\n",path,p->trapframe->epc,bin_prog.sp);
+  p->trapframe->a1 = bin_prog.sp;
+  p->trapframe->ra = 0;
+  p->trapframe->a0 = 1;
+  p->trapframe->sp = bin_prog.sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
   w_satp(MAKE_SATP(p->kpagetable));
   sfence_vma();
-  kvmfree(oldkpagetable, 0);
-  return argc; // this ends up in a0, the first argument to main(argc, argv)
-  // sz = PGROUNDUP(sz);
-  // uint64_t sz1;
-  // if ((sz1 = uvmalloc(pagetable, sz, sz + PGSIZE)) == 0)
-  //   goto bad;
-  // sz = sz1;
-  // sp = sz;
-  // stackbase = sz - PGSIZE;
-
-  // sp -= sizeof(uint64_t);
-  // a0 = sp;
-
-  // // 先将参数push到用户栈中，并准备ustack数组，它的每一个
-  // // 元素都按顺序指向参数。
-
-  // bin_prog.stack_top = 0;
-  // bin_prog.sp = sp;
-  // bin_prog.stackbase = stackbase;
-  // bin_prog.pagetable = pagetable;
-  // bin_prog.ustack = ustack;
-
-  // bin_prog.argc = bin_prog.CopyString2Stack(argv);
-  // bin_prog.envc = bin_prog.CopyString2Stack((char **)env);
-  // CreateUserStack(&bin_prog, &elf);
-
-  // sp = bin_prog.sp;
-
-  // // 用户代码main(argc, argv)的参数
-  // // argc通过系统调用返回，也就是a0
-  // p->trapframe->a1 = sp;
-  // // 保存程序名
-  // char *last, *s;
-  // for (last = s = path; *s; s++)
-  //   if (*s == '/')
-  //     last = s + 1;
-  // safestrcpy(p->name, last, sizeof(p->name) + 1);
-
-  // p->trapframe->ra = 0;
-  // oldpagetable = p->pagetable;
-  // p->pagetable = pagetable;
-  // p->sz = sz;
-  // p->trapframe->epc = elf.entry;
-  // p->trapframe->sp = sp;
-  // printf("sp=%p oldsz=%d sz=%d entry=%p", sp, oldsz, sz, elf.entry);
-  // kvmfree(oldpagetable, oldsz);
-  // ip->free();
-  // task->lock.lock();
-  // task->lock.unlock();
-  return 0;
+  //kvmfree(oldkpagetable, 0);
+  //argc = bin_prog.argc;
+  printf("argc:%d argv[0]:%s\n",((uint64 *)bin_prog.sp)[0],(char *)(((uint64 *)bin_prog.sp)[1]));
+  return bin_prog.argc; // this ends up in a0, the first argument to main(argc, argv)
+  //return 0;
  bad:
   #ifdef DEBUG
   printf("[exec] reach bad\n");

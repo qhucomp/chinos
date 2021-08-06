@@ -37,6 +37,7 @@
 #define SYS_linkat                  37
 #define SYS_umount2                 39
 #define SYS_mount                   40
+#define SYS_faccessat               48	
 #define SYS_chdir                   49
 #define SYS_openat                  56
 #define SYS_close                   57
@@ -171,6 +172,7 @@
 #define SYS_set_tid_address         96
 #define SYS_unshare                 97
 #define SYS_futex                   98 
+// #define SYS_ioctl                   29
 
 // struct fs_link {
 //     char magic[16];

@@ -303,7 +303,7 @@ uvmalloc(pagetable_t pagetable, pagetable_t kpagetable, uint64 oldsz, uint64 new
       uvmdealloc(pagetable, kpagetable, a, oldsz);
       return 0;
     }
-    if (mappages(kpagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    if (mappages(kpagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R) != 0){
       int npages = (a - oldsz) / PGSIZE;
       vmunmap(pagetable, oldsz, npages + 1, 1);   // plus the page allocated above.
       vmunmap(kpagetable, oldsz, npages, 0);

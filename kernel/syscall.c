@@ -163,7 +163,11 @@ extern uint64 sys_setgid(void);
 extern uint64 sys_setegid(void);
 extern uint64 sys_lsetattr(void);
 extern uint64 sys_set_tid_address(void);
-// extern 
+extern uint64 sys_faccessat(void);
+extern uint64 sys_mprotect(void);
+//extern uint64 sys_exit_group(void);
+extern uint64 sys_readlinkat(void);
+extern uint64 sys_ioctl(void);
 static uint64 (*syscalls[])(void) = {
   [SYS_clone]                   sys_clone,
   [SYS_exit]                    sys_exit,
@@ -234,7 +238,12 @@ static uint64 (*syscalls[])(void) = {
   [SYS_setrlimit]               sys_setrlimit,
   [SYS_umask]                   sys_umask,
   [SYS_lsetxattr]               sys_lsetattr,
-  [SYS_set_tid_address]         sys_set_tid_address
+  [SYS_set_tid_address]         sys_set_tid_address,
+  [SYS_faccessat]               sys_faccessat,
+  [SYS_mprotect]                sys_mprotect,
+  [SYS_readlinkat]              sys_readlinkat,
+  [SYS_exit_group]              sys_exit,
+  [SYS_ioctl]                   sys_ioctl
   // [SYS_rename]      sys_rename,
 };
 
@@ -298,14 +307,15 @@ uint64 sys_uname(void)
   }
 
   struct utsname info;
-  strncpy(info.sysname,"chino os",8);
-  strncpy(info.nodename,"chino",5);
-  strncpy(info.release,"0",1);
-  strncpy(info.version,"0.02",4);
+  strncpy(info.sysname,"Linux",5);
+  strncpy(info.nodename,"debian",6);
+  strncpy(info.release,"5.10.0-7-riscv64",16);
+  strncpy(info.version,"#1 SMP Debian 5.10.40-1 (2021-05-28)",36);
   strncpy(info.machine,"riscv64",7);
-  strncpy(info.domainname,"chino",5);
+  //strncpy(info.domainname,"chino",5);
   if (copyout2(addr, (char *)&info, sizeof(info)) < 0)
     return -1;
 
   return 0;
 }
+

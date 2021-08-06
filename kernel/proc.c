@@ -264,7 +264,7 @@ static void initcode(void) {
    for(;;) {
     pid = ECALL(SYS_clone,0,0);
     if (pid == 0) {
-        ECALL(SYS_execve,init,argv);
+      ECALL(SYS_execve,init,argv);
     } else if (pid < 0) {
       ECALL(SYS_exit,init,argv);
     }

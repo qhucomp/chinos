@@ -64,7 +64,7 @@ usertrap(void)
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
-  
+  printf("user epc:%p\n",r_sepc());
   if(r_scause() == 8){
     // system call
     if(p->killed)
@@ -84,7 +84,8 @@ usertrap(void)
     printf("\nusertrap(): unexpected scause %p pid=%d %s\n", r_scause(), p->pid, p->name);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     trapframedump(p->trapframe);
-    p->killed = 1;
+    //p->killed = 1;
+    p->trapframe->epc += 4;
   }
 
   if(p->killed)

@@ -92,12 +92,17 @@ uint64 sys_brk(void)
 {
   int addr;
   int n;
-
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
+
+  if (n)
+    addr = n;
+  else
+    addr = myproc()->sz;
+
   if(growproc(n) < 0)
     return -1;
+  printf("n:%p ret:%p\n",n,addr);
   return addr;
 }
 
@@ -393,16 +398,16 @@ uint64 sys_setgid(void) {
 }
 
 uint64 sys_getuid(void) {
-  return myproc()->uid;
+  return 0;//myproc()->uid;
 }
 uint64 sys_geteuid(void) {
-  return myproc()->euid;
+  return 0;//myproc()->euid;
 }
 uint64 sys_getgid(void) {
-  return myproc()->gid;
+  return 0;//myproc()->gid;
 }
 uint64 sys_getegid(void) {
-  return myproc()->egid;
+  return 0;//myproc()->egid;
 }
 uint64 sys_gettid(void) {
   return myproc()->tid;
@@ -523,6 +528,7 @@ uint64 sys_writev(void) {
   struct iovec *vec = (struct iovec *)iov;
   uint64 size = 0;
   for(int i = 0;i < iovcnt;i++) {
+    printf("iov_len:%d\n",vec[i].iov_len);
     uint64 s = filewrite(fp,(uint64)vec->iov_base,vec[i].iov_len);
     if(s != -1)
       size += s;
@@ -566,4 +572,28 @@ uint64 sys_set_tid_address(void) {
     return -1;
   copyout2(tid,(char *)&myproc()->tid,sizeof(int));
   return myproc()->tid;
+}
+
+uint64 sys_faccessat(void) {
+  char path[1024];
+  argstr(1, path, FAT32_MAX_PATH);
+  printf("path:%s\n",path);
+  return -1;
+}	
+
+uint64 sys_mprotect(void) {
+  return 0;
+}
+
+uint64_t sys_readlinkat(void) {
+  uint64 buf;
+  if(argaddr(2,&buf) < 0)
+    return -1;
+  char path[13] = "/lmbench_all";
+  copyout2(buf,path,sizeof(path));
+  return 5;
+}
+
+uint64 sys_ioctl(void) {
+  return 0;
 }
